@@ -1,0 +1,96 @@
+# =============================================================================
+# Cockpit Backend — local/base stack.
+#   docker compose up --build
+#
+# Brings up four containers (as requested): the FastAPI API, a Postgres for
+# Cockpit business data, a pgvector Postgres for RAG vectors, and MinIO for
+# object storage. Identity + credits are NOT hosted here — they live in the
+# existing native `octopilot` Postgres (see README "Database strategy"); wire it
+# via SHARED_DATABASE_URL + docker-compose.prod.yml.
+# =============================================================================
+
+name: cockpit-backend
+
+services:
+  # --- FastAPI ---------------------------------------------------------------
+  cockpit-api:
+    build: .
+    container_name: cockpit-api
+    env_file: .env
+    ports:
+      - "${API_PORT:-8100}:8100"
+    depends_on:
+      cockpit-db:
+        condition: service_healthy
+      cockpit-vectordb:
+        condition: service_healthy
+      cockpit-minio:
+        condition: service_healthy
+    volumes:
+      - ./app:/srv/app:ro          # code (dev hot-reload via uvicorn --reload)
+      - hf-cache:/root/.cache/huggingface   # embedding model cache
+    restart: unless-stopped
+
+  # --- Cockpit business data (studios, documents, ingest jobs) --------------
+  cockpit-db:
+    image: postgres:17-alpine
+    container_name: cockpit-db
+    environment:
+      POSTGRES_USER: cockpit
+      POSTGRES_PASSWORD: cockpit
+      POSTGRES_DB: cockpit
+    ports:
+      - "5433:5432"                # host 5433 -> avoid clashing with native 5432
+    volumes:
+      - cockpit-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cockpit -d cockpit"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # --- Vector store for RAG (pgvector) --------------------------------------
+  cockpit-vectordb:
+    image: pgvector/pgvector:pg17
+    container_name: cockpit-vectordb
+    environment:
+      POSTGRES_USER: vector
+      POSTGRES_PASSWORD: vector
+      POSTGRES_DB: vector
+    ports:
+      - "5434:5432"
+    volumes:
+      - cockpit-vectordb-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vector -d vector"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # --- Object storage for RAG source files (S3-compatible) ------------------
+  cockpit-minio:
+    image: minio/minio:latest
+    container_name: cockpit-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"                # S3 API
+      - "9001:9001"                # web console
+    volumes:
+      - cockpit-minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  cockpit-db-data:
+  cockpit-vectordb-data:
+  cockpit-minio-data:
+  hf-cache:

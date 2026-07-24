@@ -1,0 +1,27 @@
+# --- Web framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20        # file uploads
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# --- Database (async) ---
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+pgvector==0.3.6                 # vector column type for SQLAlchemy
+# alembic — add when you move from create_all() bootstrap to versioned migrations
+
+# --- Object storage (S3 / MinIO) ---
+boto3==1.35.90
+
+# --- Embeddings (local, open-source — no commercial embedding API) ---
+# Heavy (pulls torch). Optional at runtime: the app falls back to a deterministic
+# dev embedder when EMBEDDINGS_BACKEND=fallback, so the container boots without it.
+sentence-transformers==3.3.1
+
+# --- LLM generation via OpenRouter (OpenAI-compatible) ---
+httpx==0.28.1
+
+# --- Utils ---
+tenacity==9.0.0                 # retries for network calls
+python-json-logger==3.2.1

@@ -1,0 +1,33 @@
+# =============================================================================
+# Cockpit Backend — production overlay.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Differences from the base stack:
+#   * The API reaches the EXISTING native `octopilot` Postgres (127.0.0.1:5432
+#     on the host) for identity + credits via the host gateway. You must allow
+#     the docker bridge subnet in postgresql.conf/pg_hba.conf — see README.
+#   * No code bind-mount / hot-reload; the image is the source of truth.
+#   * Only the API port is published; databases + MinIO stay on the internal
+#     docker network. Put nginx in front of API_PORT for TLS.
+# =============================================================================
+
+services:
+  cockpit-api:
+    build: .
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8100 --workers 4
+    volumes: []                    # no bind mount in prod
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach native octopilot PG
+    environment:
+      APP_ENV: prod
+    restart: always
+
+  # Databases + MinIO: keep them off the public interface in prod.
+  cockpit-db:
+    ports: []
+  cockpit-vectordb:
+    ports: []
+  cockpit-minio:
+    ports:
+      - "127.0.0.1:9001:9001"      # console only on loopback
