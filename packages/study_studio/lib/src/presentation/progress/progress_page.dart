@@ -21,6 +21,13 @@ class ProgressPage extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/study/$studioId'),
         ),
+        actions: [
+          TextButton.icon(
+            onPressed: () => context.go('/study/$studioId/mastery-report'),
+            icon: const Icon(Icons.auto_awesome, size: 18),
+            label: const Text('Mastery Report'),
+          ),
+        ],
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -41,12 +48,19 @@ class ProgressPage extends ConsumerWidget {
                     const SizedBox(height: CockpitSpacing.md),
                     Row(
                       children: [
-                        StatTile(value: '${studio.topicCount}', label: 'Topics'),
-                        const SizedBox(width: CockpitSpacing.xl),
-                        StatTile(value: '${studio.weakTopics.length}', label: 'Weak'),
+                        StatTile(
+                          value: '${studio.topicCount}',
+                          label: 'Topics',
+                        ),
                         const SizedBox(width: CockpitSpacing.xl),
                         StatTile(
-                          value: '${studio.topics.where((t) => t.mastery >= 0.8).length}',
+                          value: '${studio.weakTopics.length}',
+                          label: 'Weak',
+                        ),
+                        const SizedBox(width: CockpitSpacing.xl),
+                        StatTile(
+                          value:
+                              '${studio.topics.where((t) => t.mastery >= 0.8).length}',
                           label: 'Strong',
                         ),
                       ],
@@ -67,11 +81,19 @@ class ProgressPage extends ConsumerWidget {
                       children: [
                         Row(
                           children: [
-                            Expanded(child: Text(t.title, style: theme.textTheme.bodyLarge)),
+                            Expanded(
+                              child: Text(
+                                t.title,
+                                style: theme.textTheme.bodyLarge,
+                              ),
+                            ),
                             if (t.isWeak)
-                              Text('Weak',
-                                  style: theme.textTheme.labelSmall
-                                      ?.copyWith(color: theme.colorScheme.error)),
+                              Text(
+                                'Weak',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: CockpitSpacing.xs),

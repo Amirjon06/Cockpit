@@ -6,6 +6,8 @@ import 'presentation/building/building_page.dart';
 import 'presentation/dashboard/dashboard_page.dart';
 import 'presentation/flashcards/flashcards_page.dart';
 import 'presentation/home/study_home_page.dart';
+import 'presentation/lightning_recall/lightning_recall_page.dart';
+import 'presentation/mastery_report/mastery_report_page.dart';
 import 'presentation/progress/progress_page.dart';
 import 'presentation/quiz_me/quiz_me_page.dart';
 import 'presentation/ready/ready_page.dart';
@@ -42,71 +44,80 @@ class StudyStudioModule extends CockpitModule {
 
   @override
   List<RouteBase> routes() => [
+    GoRoute(
+      path: '/study',
+      builder: (_, _) => const StudyHomePage(),
+      routes: [
+        // Static siblings declared before the `:studioId` param route.
+        GoRoute(path: 'upload', builder: (_, _) => const UploadPage()),
         GoRoute(
-          path: '/study',
-          builder: (_, _) => const StudyHomePage(),
+          path: 'build/:jobId',
+          builder: (_, state) =>
+              BuildingPage(jobId: state.pathParameters['jobId']!),
+        ),
+        GoRoute(
+          path: ':studioId',
+          builder: (_, state) =>
+              DashboardPage(studioId: state.pathParameters['studioId']!),
           routes: [
-            // Static siblings declared before the `:studioId` param route.
             GoRoute(
-              path: 'upload',
-              builder: (_, _) => const UploadPage(),
+              path: 'ready',
+              builder: (_, state) =>
+                  ReadyPage(studioId: state.pathParameters['studioId']!),
             ),
             GoRoute(
-              path: 'build/:jobId',
+              path: 'topics',
               builder: (_, state) =>
-                  BuildingPage(jobId: state.pathParameters['jobId']!),
+                  TopicLibraryPage(studioId: state.pathParameters['studioId']!),
             ),
             GoRoute(
-              path: ':studioId',
+              path: 'topics/:topicId',
+              builder: (_, state) => TopicDetailPage(
+                studioId: state.pathParameters['studioId']!,
+                topicId: state.pathParameters['topicId']!,
+              ),
+            ),
+            GoRoute(
+              path: 'teach/:topicId',
+              builder: (_, state) => TeachMePage(
+                studioId: state.pathParameters['studioId']!,
+                topicId: state.pathParameters['topicId']!,
+              ),
+            ),
+            GoRoute(
+              path: 'quiz',
+              builder: (_, state) => QuizMePage(
+                studioId: state.pathParameters['studioId']!,
+                topicId: state.uri.queryParameters['topicId'],
+              ),
+            ),
+            GoRoute(
+              path: 'flashcards',
+              builder: (_, state) => FlashcardsPage(
+                studioId: state.pathParameters['studioId']!,
+                topicId: state.uri.queryParameters['topicId'],
+              ),
+            ),
+            GoRoute(
+              path: 'progress',
               builder: (_, state) =>
-                  DashboardPage(studioId: state.pathParameters['studioId']!),
-              routes: [
-                GoRoute(
-                  path: 'ready',
-                  builder: (_, state) =>
-                      ReadyPage(studioId: state.pathParameters['studioId']!),
-                ),
-                GoRoute(
-                  path: 'topics',
-                  builder: (_, state) =>
-                      TopicLibraryPage(studioId: state.pathParameters['studioId']!),
-                ),
-                GoRoute(
-                  path: 'topics/:topicId',
-                  builder: (_, state) => TopicDetailPage(
-                    studioId: state.pathParameters['studioId']!,
-                    topicId: state.pathParameters['topicId']!,
-                  ),
-                ),
-                GoRoute(
-                  path: 'teach/:topicId',
-                  builder: (_, state) => TeachMePage(
-                    studioId: state.pathParameters['studioId']!,
-                    topicId: state.pathParameters['topicId']!,
-                  ),
-                ),
-                GoRoute(
-                  path: 'quiz',
-                  builder: (_, state) => QuizMePage(
-                    studioId: state.pathParameters['studioId']!,
-                    topicId: state.uri.queryParameters['topicId'],
-                  ),
-                ),
-                GoRoute(
-                  path: 'flashcards',
-                  builder: (_, state) => FlashcardsPage(
-                    studioId: state.pathParameters['studioId']!,
-                    topicId: state.uri.queryParameters['topicId'],
-                  ),
-                ),
-                GoRoute(
-                  path: 'progress',
-                  builder: (_, state) =>
-                      ProgressPage(studioId: state.pathParameters['studioId']!),
-                ),
-              ],
+                  ProgressPage(studioId: state.pathParameters['studioId']!),
+            ),
+            GoRoute(
+              path: 'mastery-report',
+              builder: (_, state) => MasteryReportPage(
+                studioId: state.pathParameters['studioId']!,
+              ),
+            ),
+            GoRoute(
+              path: 'recall',
+              builder: (_, state) => LightningRecallPage(
+                studioId: state.pathParameters['studioId']!,
+              ),
             ),
           ],
         ),
-      ];
+      ],
+    ),
+  ];
 }
