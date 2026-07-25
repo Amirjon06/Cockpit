@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     embeddings_backend: str = "fallback"  # sentence-transformers | fallback
     embeddings_model: str = "BAAI/bge-m3"
 
+    # Auth (Firebase — reuse Octopilot's Firebase project)
+    # Path to the Firebase service-account JSON (copy from octopilot on the
+    # server). Blank => Firebase verification off; the API falls back to the
+    # X-User-Id dev header. Also honors GOOGLE_APPLICATION_CREDENTIALS (ADC).
+    firebase_credentials: str = ""
+    firebase_project_id: str = ""
+    # Allow the X-User-Id dev header even when Firebase is on (turn off in prod).
+    allow_dev_user_header: bool = True
+
     # LLM (OpenRouter)
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
@@ -60,6 +69,15 @@ class Settings(BaseSettings):
     @property
     def shared_db_enabled(self) -> bool:
         return bool(self.shared_database_url.strip())
+
+    @property
+    def firebase_enabled(self) -> bool:
+        import os
+
+        return bool(
+            self.firebase_credentials.strip()
+            or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        )
 
 
 @lru_cache

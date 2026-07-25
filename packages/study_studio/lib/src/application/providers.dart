@@ -6,6 +6,7 @@ import '../data/api/api_account.dart';
 import '../data/api/api_ai_service.dart';
 import '../data/api/api_studio_repository.dart';
 import '../data/api/sse_client.dart';
+import '../data/auth/auth_service.dart';
 import '../data/repositories/in_memory_studio_repository.dart';
 import '../domain/entities/me.dart';
 import '../domain/entities/studio.dart';
@@ -13,9 +14,15 @@ import '../domain/entities/topic.dart';
 import '../domain/repositories/studio_repository.dart';
 import 'config.dart';
 
+/// Auth boundary. Stub (dev, X-User-Id) until Firebase is wired — see
+/// [AuthService]. Swap to a FirebaseAuthService here to turn on real auth.
+final authServiceProvider = Provider<AuthService>((ref) => const StubAuthService());
+
 /// Shared SSE client (one HTTP client) when the API backend is configured.
+/// Sends the Firebase ID token (when signed in) as `Authorization: Bearer`.
 final _sseClientProvider = Provider<SseClient>((ref) {
-  final client = SseClient();
+  final auth = ref.watch(authServiceProvider);
+  final client = SseClient(tokenProvider: auth.idToken);
   ref.onDispose(client.close);
   return client;
 });

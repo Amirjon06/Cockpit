@@ -20,19 +20,35 @@ class SseEvent {
 /// with just `package:http`. Switch to an incremental reader if the UI later
 /// wants token-by-token rendering.
 class SseClient {
-  SseClient({http.Client? client, String? baseUrl, String? userId})
-      : _client = client ?? http.Client(),
+  SseClient({
+    http.Client? client,
+    String? baseUrl,
+    String? userId,
+    Future<String?> Function()? tokenProvider,
+  })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? StudioConfig.apiBaseUrl,
-        _userId = userId ?? StudioConfig.devUserId;
+        _userId = userId ?? StudioConfig.devUserId,
+        // ignore: prefer_initializing_formals — public name differs from field
+        _tokenProvider = tokenProvider;
 
   final http.Client _client;
   final String _baseUrl;
   final String _userId;
 
-  Map<String, String> get _headers => {
-        'Accept': 'text/event-stream',
+  /// Supplies the Firebase ID token when signed in; null falls back to the dev
+  /// X-User-Id header.
+  final Future<String?> Function()? _tokenProvider;
+
+  Future<Map<String, String>> _headers() async {
+    final token = await _tokenProvider?.call();
+    return {
+      'Accept': 'text/event-stream',
+      if (token != null && token.isNotEmpty)
+        'Authorization': 'Bearer $token'
+      else
         'X-User-Id': _userId,
-      };
+    };
+  }
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
     final base = Uri.parse('$_baseUrl$path');
@@ -46,13 +62,13 @@ class SseClient {
   }
 
   Future<List<SseEvent>> get(String path, {Map<String, dynamic>? query}) async {
-    final resp = await _client.get(_uri(path, query), headers: _headers);
+    final resp = await _client.get(_uri(path, query), headers: await _headers());
     return _parse(resp);
   }
 
   Future<List<SseEvent>> post(String path, {Map<String, dynamic>? query}) async {
     final resp =
-        await _client.post(_uri(path, query), headers: _headers);
+        await _client.post(_uri(path, query), headers: await _headers());
     return _parse(resp);
   }
 

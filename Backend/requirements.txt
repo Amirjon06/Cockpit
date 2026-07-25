@@ -20,6 +20,9 @@ boto3==1.35.90
 # dev embedder when EMBEDDINGS_BACKEND=fallback, so the container boots without it.
 sentence-transformers==3.3.1
 
+# --- Auth (Firebase ID-token verification — reuses Octopilot's Firebase) ---
+firebase-admin==6.6.0
+
 # --- LLM generation via OpenRouter (OpenAI-compatible) ---
 httpx==0.28.1
 
