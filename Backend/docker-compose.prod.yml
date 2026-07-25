@@ -18,9 +18,14 @@ services:
     build: .
     network_mode: host
     # Host network: bind loopback only (public exposure would be a security bug).
+    # 2 workers (not 4): each worker loads its OWN copy of the BGE-m3 embedding
+    # model (~2.5GB). This box has 15GB RAM, no swap, and runs the live octopilot
+    # app — 4 workers could OOM it. 2 keeps peak ~5GB with headroom.
     command: >
-      uvicorn app.main:app --host 127.0.0.1 --port 8100 --workers 4
-    volumes: []                    # no bind mount in prod
+      uvicorn app.main:app --host 127.0.0.1 --port 8100 --workers 2
+    # Persist the downloaded embedding model across recreates (no code mount).
+    volumes:
+      - hf-cache:/root/.cache/huggingface
     ports: !override []            # host networking can't publish ports
     environment:
       APP_ENV: prod

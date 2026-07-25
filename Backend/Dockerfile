@@ -15,8 +15,10 @@ RUN apt-get update \
 # The default torch wheel drags in ~5GB of unused NVIDIA CUDA libs. Keeping it in
 # a separate layer (before requirements.txt) means editing requirements.txt does
 # not re-download torch. sentence-transformers reuses this already-satisfied torch.
+# torch >= 2.6 is required by sentence-transformers to load models via torch.load
+# (CVE-2025-32434 guard). CPU wheel keeps it lean.
 RUN pip install --upgrade pip \
-    && pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+    && pip install --index-url https://download.pytorch.org/whl/cpu torch==2.6.0
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt

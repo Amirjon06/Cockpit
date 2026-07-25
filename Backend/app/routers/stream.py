@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from ..config import get_settings
-from ..db import get_cockpit_session, get_shared_session, get_vector_session
+from ..db import CockpitSession, SharedSession, VectorSession
 from ..deps import get_current_user_id
 from ..dto import AskCitationDTO, MeDTO, StudioDTO, TopicDTO
 from ..models.cockpit import GeneratedTopic, IngestJob, Studio
@@ -72,22 +72,20 @@ async def _db_studios_for(cockpit: AsyncSession, user_id: uuid.UUID) -> list[Stu
 @router.get("/me")
 async def me(
     user_id: uuid.UUID = Depends(get_current_user_id),
-    shared: AsyncSession | None = Depends(get_shared_session),
 ) -> EventSourceResponse:
     async def gen() -> AsyncIterator[dict]:
         credits = None
         email = None
-        if shared is not None:
-            from sqlalchemy import select
-
+        if SharedSession is not None:
             from ..models.shared import User
 
-            row = await shared.execute(
-                select(User.email, User.octo_credits).where(User.id == user_id)
-            )
-            found = row.first()
-            if found:
-                email, credits = found
+            async with SharedSession() as shared:
+                row = await shared.execute(
+                    select(User.email, User.octo_credits).where(User.id == user_id)
+                )
+                found = row.first()
+                if found:
+                    email, credits = found
         yield event("data", MeDTO(id=str(user_id), email=email, credits=credits))
         yield done()
 
@@ -97,11 +95,16 @@ async def me(
 @router.get("/studios")
 async def list_studios(
     user_id: uuid.UUID = Depends(get_current_user_id),
-    cockpit: AsyncSession = Depends(get_cockpit_session),
 ) -> EventSourceResponse:
     async def gen() -> AsyncIterator[dict]:
         # The user's own (persisted) studios first, then the seed demos.
-        for studio in await _db_studios_for(cockpit, user_id):
+        # Short-lived session inside the generator: a DB session injected via
+        # Depends into an SSE (EventSourceResponse) endpoint isn't checked back
+        # in cleanly on stream teardown and gets GC-terminated (log spam +
+        # connection churn). See /me for the same pattern.
+        async with CockpitSession() as cockpit:
+            studios = await _db_studios_for(cockpit, user_id)
+        for studio in studios:
             yield event("item", studio)
         for studio in _STUDIOS.values():
             yield event("item", studio)
@@ -114,18 +117,19 @@ async def list_studios(
 async def create_studio(
     body: dict = Body(...),
     user_id: uuid.UUID = Depends(get_current_user_id),
-    cockpit: AsyncSession = Depends(get_cockpit_session),
 ) -> EventSourceResponse:
     title = (body.get("title") or "").strip() or "Untitled Studio"
     subject = (body.get("subject") or "").strip() or None
 
     async def gen() -> AsyncIterator[dict]:
         try:
-            studio = Studio(user_id=user_id, title=title, subject=subject)
-            cockpit.add(studio)
-            await cockpit.commit()
-            await cockpit.refresh(studio)
-            yield event("data", _db_studio_to_dto(studio))
+            async with CockpitSession() as cockpit:
+                studio = Studio(user_id=user_id, title=title, subject=subject)
+                cockpit.add(studio)
+                await cockpit.commit()
+                await cockpit.refresh(studio)
+                dto = _db_studio_to_dto(studio)
+            yield event("data", dto)
             yield done()
         except Exception as exc:  # noqa: BLE001
             yield error(f"Could not create studio: {exc}")
@@ -137,16 +141,21 @@ async def create_studio(
 async def get_studio(
     studio_id: str,
     user_id: uuid.UUID = Depends(get_current_user_id),
-    cockpit: AsyncSession = Depends(get_cockpit_session),
 ) -> EventSourceResponse:
     async def gen() -> AsyncIterator[dict]:
         # Persisted studio (owned by the user) first, then the seed demos.
         try:
             sid = uuid.UUID(studio_id)
-            row = await cockpit.get(Studio, sid)
-            if row is not None and row.user_id == user_id:
-                topics = await _load_topics(cockpit, sid)
-                yield event("data", _db_studio_to_dto(row, topics))
+            async with CockpitSession() as cockpit:
+                row = await cockpit.get(Studio, sid)
+                owned = row is not None and row.user_id == user_id
+                dto = (
+                    _db_studio_to_dto(row, await _load_topics(cockpit, sid))
+                    if owned
+                    else None
+                )
+            if dto is not None:
+                yield event("data", dto)
                 yield done()
                 return
         except Exception:  # noqa: BLE001 — non-UUID id (seed) or DB down
@@ -166,31 +175,36 @@ async def build_progress(
     studio_id: str,
     job_id: uuid.UUID,
     user_id: uuid.UUID = Depends(get_current_user_id),
-    cockpit: AsyncSession = Depends(get_cockpit_session),
 ) -> EventSourceResponse:
-    """Stream an ingestion job's progress (queued → running → done/failed)."""
+    """Stream an ingestion job's progress (queued → running → done/failed).
+
+    Uses a short-lived session PER POLL (not one held for the whole stream): a
+    long-lived SSE stream that holds a pooled connection leaks it if the client
+    disconnects mid-stream. Each poll checks a connection out and back in.
+    """
 
     async def gen() -> AsyncIterator[dict]:
         last = None
         for _ in range(600):  # ~5 min ceiling at 0.5s
-            job = await cockpit.get(IngestJob, job_id)
-            if job is None or job.user_id != user_id:
+            async with CockpitSession() as cockpit:
+                job = await cockpit.get(IngestJob, job_id)
+                status = None if job is None else job.status
+                chunks = None if job is None else job.chunks_written
+                owner = None if job is None else job.user_id
+                error_msg = None if job is None else job.error
+            if job is None or owner != user_id:
                 yield error("Job not found")
                 return
-            if job.status != last:
-                last = job.status
-                yield event(
-                    "progress",
-                    {"status": job.status, "chunks": job.chunks_written},
-                )
-            if job.status in ("done", "failed"):
-                if job.status == "failed":
-                    yield error(job.error or "Ingestion failed")
+            if status != last:
+                last = status
+                yield event("progress", {"status": status, "chunks": chunks})
+            if status in ("done", "failed"):
+                if status == "failed":
+                    yield error(error_msg or "Ingestion failed")
                 else:
                     yield done()
                 return
             await asyncio.sleep(0.5)
-            cockpit.expire_all()  # re-read on next get
         yield error("Ingestion timed out")
 
     return EventSourceResponse(gen())
@@ -219,8 +233,6 @@ async def ask(
     studio_id: str = Query(...),
     q: str = Query(..., min_length=1),
     user_id: uuid.UUID = Depends(get_current_user_id),
-    vector: AsyncSession = Depends(get_vector_session),
-    shared: AsyncSession | None = Depends(get_shared_session),
 ) -> EventSourceResponse:
     settings = get_settings()
 
@@ -238,22 +250,30 @@ async def ask(
             except ValueError:
                 sid = uuid.uuid5(uuid.NAMESPACE_DNS, studio_id)
 
+            # Retrieval + credential lookup use SHORT-LIVED sessions so no DB
+            # connection is held during the (potentially long) LLM stream — a
+            # held connection leaks if the client disconnects mid-answer.
             hits = []
             try:
                 q_vec = get_embedder().embed([q])[0]
-                hits = await hybrid_search(
-                    vector,
-                    user_id=user_id,
-                    studio_id=sid,
-                    query_text=q,
-                    query_embedding=q_vec,
-                    top_k=settings.rag_top_k,
-                )
+                async with VectorSession() as vector:
+                    hits = await hybrid_search(
+                        vector,
+                        user_id=user_id,
+                        studio_id=sid,
+                        query_text=q,
+                        query_embedding=q_vec,
+                        top_k=settings.rag_top_k,
+                    )
             except Exception:  # noqa: BLE001 — retrieval optional in seed mode
                 hits = []
 
             context = llm.build_context_block([h.content for h in hits])
-            api_key, model = await llm.resolve_credentials(shared)
+            if SharedSession is not None:
+                async with SharedSession() as shared:
+                    api_key, model = await llm.resolve_credentials(shared)
+            else:
+                api_key, model = await llm.resolve_credentials(None)
 
             async for delta in llm.generate_stream(
                 api_key=api_key, model=model, question=q, context=context

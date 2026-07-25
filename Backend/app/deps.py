@@ -10,28 +10,34 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import verify_bearer
 from .config import get_settings
-from .db import get_cockpit_session, get_shared_session, get_vector_session
+from .db import (
+    SharedSession,
+    get_cockpit_session,
+    get_shared_session,
+    get_vector_session,
+)
 from .services.credits import CreditsService
 
 
-async def _resolve_octopilot_user_id(
-    shared: AsyncSession | None, firebase_uid: str | None
-) -> uuid.UUID | None:
-    """Map a Firebase uid to the canonical octopilot `users.id`, or None."""
-    if shared is None or not firebase_uid:
+async def _resolve_octopilot_user_id(firebase_uid: str | None) -> uuid.UUID | None:
+    """Map a Firebase uid to the canonical octopilot `users.id`, or None.
+
+    Uses a short-lived shared session (not an injected one) so nothing is held
+    open across long-lived SSE streams (build progress / ask)."""
+    if SharedSession is None or not firebase_uid:
         return None
     from .models.shared import User
 
-    row = await shared.execute(
-        select(User.id).where(User.firebase_uid == firebase_uid)
-    )
-    return row.scalar_one_or_none()
+    async with SharedSession() as shared:
+        row = await shared.execute(
+            select(User.id).where(User.firebase_uid == firebase_uid)
+        )
+        return row.scalar_one_or_none()
 
 
 async def get_current_user_id(
     authorization: str | None = Header(default=None),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
-    shared: AsyncSession | None = Depends(get_shared_session),
 ) -> uuid.UUID:
     """Resolve the caller's user id.
 
@@ -51,7 +57,7 @@ async def get_current_user_id(
         token = authorization[7:].strip()
         user = verify_bearer(token)
         if user is not None:
-            real = await _resolve_octopilot_user_id(shared, user.firebase_uid)
+            real = await _resolve_octopilot_user_id(user.firebase_uid)
             return real or user.user_id
         # Firebase is on but the token is invalid → reject.
         if settings.firebase_enabled:
