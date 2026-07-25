@@ -83,7 +83,7 @@ async def me(
             from ..models.shared import User
 
             row = await shared.execute(
-                select(User.email, User.credits).where(User.id == user_id)
+                select(User.email, User.octo_credits).where(User.id == user_id)
             )
             found = row.first()
             if found:
@@ -230,13 +230,21 @@ async def ask(
             from ..services.embeddings import get_embedder
             from ..services.vectorstore import hybrid_search
 
+            # Real (DB) studios have UUID ids and their chunks are stored under
+            # that exact UUID. Only the seed demo studios use slug ids ("bio"),
+            # which have no ingested chunks — map those to a stable uuid5.
+            try:
+                sid = uuid.UUID(studio_id)
+            except ValueError:
+                sid = uuid.uuid5(uuid.NAMESPACE_DNS, studio_id)
+
             hits = []
             try:
                 q_vec = get_embedder().embed([q])[0]
                 hits = await hybrid_search(
                     vector,
                     user_id=user_id,
-                    studio_id=uuid.uuid5(uuid.NAMESPACE_DNS, studio_id),
+                    studio_id=sid,
                     query_text=q,
                     query_embedding=q_vec,
                     top_k=settings.rag_top_k,

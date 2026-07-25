@@ -6,9 +6,8 @@ against this database and must not treat these definitions as authoritative — 
 octopilot service owns the schema. Columns here are the minimum we read; unknown
 columns are simply not mapped.
 
-⚠️ Credits: the exact credit/ledger columns were not confirmed against the live
-schema. `User.credits` is a best-effort mapping — verify against the real
-`octopilot` DB before enabling credit enforcement (see services/credits.py).
+Credits: `octo_credits` is octopilot's Octocredits balance column (confirmed
+against the live schema — the same field the app's Octocredits pill shows).
 """
 
 from __future__ import annotations
@@ -26,9 +25,11 @@ class User(SharedBase):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    # Firebase uid -> canonical octopilot user (unique, indexed in octopilot).
+    firebase_uid: Mapped[str | None] = mapped_column(String(128), nullable=True)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-    # Best-effort — confirm the real credits column/ledger before relying on it.
-    credits: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Octocredits balance (the pill). octopilot also has word/source/humanizer.
+    octo_credits: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class ApiKey(SharedBase):

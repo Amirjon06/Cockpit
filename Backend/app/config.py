@@ -43,11 +43,12 @@ class Settings(BaseSettings):
     embeddings_model: str = "BAAI/bge-m3"
 
     # Auth (Firebase — reuse Octopilot's Firebase project)
-    # Path to the Firebase service-account JSON (copy from octopilot on the
-    # server). Blank => Firebase verification off; the API falls back to the
-    # X-User-Id dev header. Also honors GOOGLE_APPLICATION_CREDENTIALS (ADC).
-    firebase_credentials: str = ""
+    # We verify Firebase ID tokens against Google's public keys (same method as
+    # octopilot's auth.py) — NO service-account JSON needed, just the project id.
+    # Blank project id => verification off; the API falls back to X-User-Id (dev).
     firebase_project_id: str = ""
+    # Kept for back-compat / optional ADC; not required for token verification.
+    firebase_credentials: str = ""
     # Allow the X-User-Id dev header even when Firebase is on (turn off in prod).
     allow_dev_user_header: bool = True
 
@@ -72,12 +73,7 @@ class Settings(BaseSettings):
 
     @property
     def firebase_enabled(self) -> bool:
-        import os
-
-        return bool(
-            self.firebase_credentials.strip()
-            or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-        )
+        return bool(self.firebase_project_id.strip())
 
 
 @lru_cache

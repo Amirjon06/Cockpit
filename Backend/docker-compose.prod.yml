@@ -3,35 +3,35 @@
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #
 # Differences from the base stack:
-#   * The API reaches the EXISTING native `octopilot` Postgres (127.0.0.1:5432
-#     on the host) for identity + credits via the host gateway. You must allow
-#     the docker bridge subnet in postgresql.conf/pg_hba.conf — see README.
+#   * cockpit-api runs with `network_mode: host` (same as octopilot-api) so it
+#     reaches the EXISTING native `octopilot` Postgres on 127.0.0.1:5432 with
+#     ZERO changes to that DB (no pg_hba edit, no restart). uvicorn binds
+#     127.0.0.1 only, so the API is NOT public — nginx fronts it for TLS.
+#   * Because the API is on the host network (not the docker bridge), it reaches
+#     its OWN db/vector/minio via loopback published ports (127.0.0.1:5433/5434/
+#     9000), which .env points at. Those ports are loopback-only (not public).
 #   * No code bind-mount / hot-reload; the image is the source of truth.
-#   * Only the API port is published; databases + MinIO stay on the internal
-#     docker network. Put nginx in front of API_PORT for TLS.
 # =============================================================================
 
 services:
   cockpit-api:
     build: .
+    network_mode: host
+    # Host network: bind loopback only (public exposure would be a security bug).
     command: >
-      uvicorn app.main:app --host 0.0.0.0 --port 8100 --workers 4
+      uvicorn app.main:app --host 127.0.0.1 --port 8100 --workers 4
     volumes: []                    # no bind mount in prod
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # reach native octopilot PG
+    ports: !override []            # host networking can't publish ports
     environment:
       APP_ENV: prod
     restart: always
 
-  # Databases + MinIO: keep them fully off the host in prod — the API reaches
-  # them over the internal docker network by service name. (MinIO console 9001
-  # is intentionally NOT published; use `docker compose exec` if you need it.)
-  # `!override` REPLACES the base list (compose merges/appends ports otherwise),
-  # so these get NO host mapping at all in prod — reachable only over the
-  # internal docker network (and `docker compose exec`).
+  # db/vector/minio on the bridge, published to loopback only so the
+  # host-networked API can reach them. `!override` REPLACES the base list
+  # (compose otherwise merges/appends ports). Never public — 127.0.0.1 bound.
   cockpit-db:
-    ports: !override []
+    ports: !override ["127.0.0.1:5433:5432"]
   cockpit-vectordb:
-    ports: !override []
+    ports: !override ["127.0.0.1:5434:5432"]
   cockpit-minio:
-    ports: !override []
+    ports: !override ["127.0.0.1:9000:9000"]

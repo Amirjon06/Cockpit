@@ -21,7 +21,9 @@ boto3==1.35.90
 sentence-transformers==3.3.1
 
 # --- Auth (Firebase ID-token verification — reuses Octopilot's Firebase) ---
-firebase-admin==6.6.0
+# We verify ID tokens against Google's public keys (no service account / admin
+# SDK needed — same approach as octopilot). PyJWKClient fetches the JWKS.
+PyJWT[crypto]==2.10.1
 
 # --- LLM generation via OpenRouter (OpenAI-compatible) ---
 httpx==0.28.1

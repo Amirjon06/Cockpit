@@ -34,7 +34,9 @@ class CreditsService:
     async def balance(self, user_id: uuid.UUID) -> int | None:
         if self._shared is None:
             return None
-        row = await self._shared.execute(select(User.credits).where(User.id == user_id))
+        row = await self._shared.execute(
+            select(User.octo_credits).where(User.id == user_id)
+        )
         return row.scalar_one_or_none()
 
     async def check(self, user_id: uuid.UUID, cost: int = 1) -> bool:

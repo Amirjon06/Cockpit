@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import Depends, Header, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import verify_bearer
@@ -13,15 +14,34 @@ from .db import get_cockpit_session, get_shared_session, get_vector_session
 from .services.credits import CreditsService
 
 
+async def _resolve_octopilot_user_id(
+    shared: AsyncSession | None, firebase_uid: str | None
+) -> uuid.UUID | None:
+    """Map a Firebase uid to the canonical octopilot `users.id`, or None."""
+    if shared is None or not firebase_uid:
+        return None
+    from .models.shared import User
+
+    row = await shared.execute(
+        select(User.id).where(User.firebase_uid == firebase_uid)
+    )
+    return row.scalar_one_or_none()
+
+
 async def get_current_user_id(
     authorization: str | None = Header(default=None),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    shared: AsyncSession | None = Depends(get_shared_session),
 ) -> uuid.UUID:
     """Resolve the caller's user id.
 
     Priority:
       1. `Authorization: Bearer <firebase-id-token>` — verified against
          Octopilot's Firebase project (see app/auth.py). This is real auth.
+         The token's uid is mapped to the canonical octopilot `users.id` via the
+         shared DB (so Cockpit data binds to the same identity as octopilot);
+         falls back to a deterministic uuid5 if the shared DB is off or the user
+         has no octopilot row yet.
       2. `X-User-Id` dev header — only when Firebase is off, or when
          ALLOW_DEV_USER_HEADER is on (turn it off in prod).
     """
@@ -31,7 +51,8 @@ async def get_current_user_id(
         token = authorization[7:].strip()
         user = verify_bearer(token)
         if user is not None:
-            return user.user_id
+            real = await _resolve_octopilot_user_id(shared, user.firebase_uid)
+            return real or user.user_id
         # Firebase is on but the token is invalid → reject.
         if settings.firebase_enabled:
             raise HTTPException(
