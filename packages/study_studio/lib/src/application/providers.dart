@@ -8,6 +8,7 @@ import '../data/api/api_studio_repository.dart';
 import '../data/api/sse_client.dart';
 import '../data/api/upload_api.dart';
 import '../data/auth/auth_service.dart';
+import '../data/auth/firebase_auth_service.dart';
 import '../data/repositories/in_memory_studio_repository.dart';
 import '../domain/entities/me.dart';
 import '../domain/entities/studio.dart';
@@ -15,9 +16,12 @@ import '../domain/entities/topic.dart';
 import '../domain/repositories/studio_repository.dart';
 import 'config.dart';
 
-/// Auth boundary. Stub (dev, X-User-Id) until Firebase is wired — see
-/// [AuthService]. Swap to a FirebaseAuthService here to turn on real auth.
-final authServiceProvider = Provider<AuthService>((ref) => const StubAuthService());
+/// Auth boundary. Uses Firebase (Octopilot's project) when the Firebase config
+/// is injected, otherwise the offline/dev stub (backend then uses X-User-Id).
+final authServiceProvider = Provider<AuthService>((ref) {
+  if (StudioConfig.firebaseConfigured) return FirebaseAuthService();
+  return const StubAuthService();
+});
 
 /// Shared SSE client (one HTTP client) when the API backend is configured.
 /// Sends the Firebase ID token (when signed in) as `Authorization: Bearer`.

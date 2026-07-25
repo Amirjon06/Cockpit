@@ -97,29 +97,43 @@ class OctocreditsPill extends StatelessWidget {
   }
 }
 
-/// Circular profile control. Tapping opens a small account menu (auth start —
-/// sign-out is a placeholder until the Octopilot/Firebase session is wired).
-class ProfileAvatar extends StatelessWidget {
+/// Circular profile control. Tapping opens the account menu: sign in/out via
+/// [AuthService] (Firebase when configured), and profile/settings entries.
+class ProfileAvatar extends ConsumerWidget {
   const ProfileAvatar({super.key, this.me});
 
   final Me? me;
 
+  Future<void> _handle(BuildContext context, WidgetRef ref, String value) async {
+    final auth = ref.read(authServiceProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (value == 'Sign in') {
+        await auth.signIn();
+        ref.invalidate(meProvider);
+      } else if (value == 'Sign out') {
+        await auth.signOut();
+        ref.invalidate(meProvider);
+      } else {
+        messenger.showSnackBar(SnackBar(content: Text('$value — coming soon')));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('$value failed: $e')));
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final initials = me?.initials ?? '?';
+    final signedIn = ref.watch(authServiceProvider).isSignedIn;
+    final initials = me?.initials ?? (signedIn ? '?' : 'G');
     final subtitle = me?.email ?? me?.displayName ?? 'Not signed in';
 
     return PopupMenuButton<String>(
       tooltip: 'Account',
       offset: const Offset(0, 44),
-      onSelected: (value) {
-        final messenger = ScaffoldMessenger.of(context);
-        messenger.showSnackBar(
-          SnackBar(content: Text('$value — coming soon')),
-        );
-      },
+      onSelected: (value) => _handle(context, ref, value),
       itemBuilder: (context) => [
         PopupMenuItem<String>(
           enabled: false,
@@ -127,7 +141,7 @@ class ProfileAvatar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                me?.displayName ?? 'Guest',
+                me?.displayName ?? (signedIn ? 'Signed in' : 'Guest'),
                 style: theme.textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
@@ -138,7 +152,10 @@ class ProfileAvatar extends StatelessWidget {
         const PopupMenuDivider(),
         const PopupMenuItem<String>(value: 'Profile', child: Text('Profile')),
         const PopupMenuItem<String>(value: 'Settings', child: Text('Settings')),
-        const PopupMenuItem<String>(value: 'Sign out', child: Text('Sign out')),
+        if (signedIn)
+          const PopupMenuItem<String>(value: 'Sign out', child: Text('Sign out'))
+        else
+          const PopupMenuItem<String>(value: 'Sign in', child: Text('Sign in')),
       ],
       child: CircleAvatar(
         radius: 18,

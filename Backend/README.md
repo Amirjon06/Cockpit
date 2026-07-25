@@ -145,17 +145,20 @@ nginx, and the **native** `octopilot` Postgres on `127.0.0.1:5432`.
      `listen_addresses` to include the docker gateway, **or**
    - keep PG on loopback and run the API with `network_mode: host`.
    The prod overlay adds `host.docker.internal:host-gateway` for option 1.
-3. Start with the production overlay:
+   - `FIREBASE_CREDENTIALS=/srv/secrets/firebase-service-account.json` (copy the
+     service-account JSON from octopilot) and `ALLOW_DEV_USER_HEADER=false`.
+3. Run the deploy script on the server (idempotent — builds, starts the prod
+   overlay, creates schemas, checks health):
    ```bash
-   make prod        # docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-   docker compose exec cockpit-api python -m scripts.init_databases
+   bash deploy/deploy.sh
    ```
-4. Point nginx at `127.0.0.1:8100` (TLS terminates at nginx). Only the API is
-   exposed; `cockpit-db`, `cockpit-vectordb`, and MinIO stay on the internal
-   docker network.
+4. Put nginx in front: `deploy/nginx-cockpit.conf` proxies `127.0.0.1:8100` with
+   SSE-friendly settings; then `certbot` for TLS. Only the API is exposed;
+   `cockpit-db`, `cockpit-vectordb`, and MinIO stay on the internal docker
+   network.
 
 Nothing above has been run against the live server yet — it's the reviewed
-go-live step.
+go-live step (production data + credits live in the shared DB).
 
 ---
 
@@ -178,8 +181,12 @@ Auth is a header (`X-User-Id`) **placeholder** for now — see below.
 
 Deliberately **not** guessed — these need your confirmation before go-live:
 
-1. **Auth.** `X-User-Id` is a scaffold. Real auth should validate the Octopilot
-   session token (`sessions` table) or a JWT and derive `user_id`. → `app/deps.py`.
+1. **Auth.** Firebase ID-token verification is wired (`app/auth.py`, reuses
+   Octopilot's Firebase). To turn it on: set `FIREBASE_CREDENTIALS` (service
+   account from octopilot) + `ALLOW_DEV_USER_HEADER=false`, and on the client
+   pass the Firebase web config via `--dart-define` (see study_studio
+   `firebase_bootstrap.dart`). Refinement: map the token's uid/email to the real
+   octopilot `users.id` (currently a deterministic uuid5 of the uid).
 2. **Credits ledger.** The exact credit table/columns weren't confirmed, so
    `CreditsService.debit()` is a **no-op** and `check()` fails open — the backend
    never mutates real financial tables on a guess. Point it at the right ledger

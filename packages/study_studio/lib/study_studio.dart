@@ -3,4 +3,5 @@
 /// The shell only needs [StudyStudioModule]; everything else is internal.
 library;
 
+export 'src/firebase_bootstrap.dart' show initStudioFirebase;
 export 'src/study_studio_module.dart';

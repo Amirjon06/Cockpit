@@ -23,4 +23,26 @@ class StudioConfig {
   );
 
   static bool get hasApiBackend => apiBaseUrl.isNotEmpty;
+
+  // --- Firebase (reuse Octopilot's Firebase project) -----------------------
+  // Copy these from Octopilot's Firebase Web app config and pass as
+  // --dart-define=FIREBASE_API_KEY=… etc. When unset, the app stays in the
+  // offline/dev auth mode (StubAuthService).
+  static const String firebaseApiKey =
+      String.fromEnvironment('FIREBASE_API_KEY', defaultValue: '');
+  static const String firebaseAppId =
+      String.fromEnvironment('FIREBASE_APP_ID', defaultValue: '');
+  static const String firebaseProjectId =
+      String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: '');
+  static const String firebaseMessagingSenderId =
+      String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '');
+  static const String firebaseAuthDomain =
+      String.fromEnvironment('FIREBASE_AUTH_DOMAIN', defaultValue: '');
+  static const String firebaseStorageBucket =
+      String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: '');
+
+  static bool get firebaseConfigured =>
+      firebaseApiKey.isNotEmpty &&
+      firebaseAppId.isNotEmpty &&
+      firebaseProjectId.isNotEmpty;
 }
