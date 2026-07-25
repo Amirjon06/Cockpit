@@ -12,7 +12,12 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# Install CPU-only torch first (this is a CPU server — no GPU). Otherwise the
+# default torch wheel drags in ~5GB of NVIDIA CUDA libraries we never use and
+# bloats the image. sentence-transformers then reuses this already-satisfied torch.
+RUN pip install --upgrade pip \
+    && pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1 \
+    && pip install -r requirements.txt
 
 COPY app ./app
 COPY scripts ./scripts

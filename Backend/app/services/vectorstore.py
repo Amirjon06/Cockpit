@@ -96,7 +96,7 @@ async def hybrid_search(
     result = await session.execute(
         stmt,
         {
-            "qvec": str(query_embedding),
+            "qvec": query_embedding,
             "qtext": query_text,
             "user_id": str(user_id),
             "studio_id": str(studio_id),

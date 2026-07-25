@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
+from pgvector.asyncpg import register_vector
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -47,6 +49,23 @@ def _engine(url: str) -> AsyncEngine:
 
 cockpit_engine = _engine(settings.cockpit_database_url)
 vector_engine = _engine(settings.vector_database_url)
+
+
+async def _register_vector_codec(conn) -> None:
+    """Teach asyncpg the pgvector `vector` type so Python lists bind directly.
+    Without this, asyncpg has no codec for `vector` and rejects list params.
+    Guarded: on a brand-new DB the extension may not exist yet (e.g. during
+    `init_databases`, before CREATE EXTENSION) — skip then; real connections in
+    the API process come after init, when the type exists."""
+    try:
+        await register_vector(conn)
+    except Exception:  # noqa: BLE001 - extension not present yet; ignore
+        pass
+
+
+@event.listens_for(vector_engine.sync_engine, "connect")
+def _on_vector_connect(dbapi_connection, _record) -> None:  # noqa: ANN001
+    dbapi_connection.run_async(_register_vector_codec)
 shared_engine: AsyncEngine | None = (
     _engine(settings.shared_database_url) if settings.shared_db_enabled else None
 )

@@ -23,11 +23,12 @@ services:
       APP_ENV: prod
     restart: always
 
-  # Databases + MinIO: keep them off the public interface in prod.
+  # Databases + MinIO: keep them fully off the host in prod — the API reaches
+  # them over the internal docker network by service name. (MinIO console 9001
+  # is intentionally NOT published; use `docker compose exec` if you need it.)
   cockpit-db:
     ports: []
   cockpit-vectordb:
     ports: []
   cockpit-minio:
-    ports:
-      - "127.0.0.1:9001:9001"      # console only on loopback
+    ports: []

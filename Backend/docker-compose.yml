@@ -18,7 +18,9 @@ services:
     container_name: cockpit-api
     env_file: .env
     ports:
-      - "${API_PORT:-8100}:8100"
+      # API_BIND=127.0.0.1 in prod keeps the API on loopback (nginx fronts it);
+      # defaults to 0.0.0.0 for local dev.
+      - "${API_BIND:-0.0.0.0}:${API_PORT:-8100}:8100"
     depends_on:
       cockpit-db:
         condition: service_healthy
