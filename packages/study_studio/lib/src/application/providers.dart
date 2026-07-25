@@ -2,10 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/ai/ai_service.dart';
 import '../data/ai/stub_ai_service.dart';
+import '../data/api/api_account.dart';
 import '../data/api/api_ai_service.dart';
 import '../data/api/api_studio_repository.dart';
 import '../data/api/sse_client.dart';
 import '../data/repositories/in_memory_studio_repository.dart';
+import '../domain/entities/me.dart';
 import '../domain/entities/studio.dart';
 import '../domain/entities/topic.dart';
 import '../domain/repositories/studio_repository.dart';
@@ -44,6 +46,21 @@ final studioListProvider = FutureProvider<List<Studio>>((ref) {
 /// One studio by id (Dashboard, Topic Library, Progress).
 final studioProvider = FutureProvider.family<Studio, String>((ref, studioId) {
   return ref.watch(studioRepositoryProvider).getStudio(studioId);
+});
+
+/// The signed-in user for the app chrome (profile + Octocredits). Reads `/me`
+/// from the backend when configured; otherwise a local placeholder so the header
+/// still renders in offline/mock mode. This is the auth starting point — swap
+/// the placeholder for the real Octopilot/Firebase session.
+final meProvider = FutureProvider<Me>((ref) async {
+  if (StudioConfig.hasApiBackend) {
+    return ApiAccount(client: ref.watch(_sseClientProvider)).me();
+  }
+  return const Me(
+    id: StudioConfig.devUserId,
+    displayName: 'Guest',
+    credits: null,
+  );
 });
 
 typedef TopicKey = ({String studioId, String topicId});

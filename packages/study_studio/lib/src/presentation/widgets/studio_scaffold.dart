@@ -2,6 +2,8 @@ import 'package:cockpit_ui/cockpit_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'account_bar.dart';
+
 /// Width at/above which we switch from the phone layout (bottom nav, single
 /// column) to the desktop/web layout (left nav rail, multi-column).
 const double kStudioDesktop = 900;
@@ -64,8 +66,52 @@ class StudioShell extends StatelessWidget {
       );
     }
     return Scaffold(
-      body: child,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const _MobileTopBar(),
+            Expanded(child: child),
+          ],
+        ),
+      ),
       bottomNavigationBar: _BottomNav(selectedIndex: selectedIndex),
+    );
+  }
+}
+
+/// Slim top bar for phones: brand on the left, Octocredits + profile on the
+/// right. On desktop the same controls live at the bottom of the nav rail.
+class _MobileTopBar extends StatelessWidget {
+  const _MobileTopBar();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        CockpitSpacing.md,
+        CockpitSpacing.sm,
+        CockpitSpacing.md,
+        CockpitSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, size: 20, color: theme.colorScheme.primary),
+          const SizedBox(width: CockpitSpacing.sm),
+          Flexible(
+            child: Text(
+              'Study Studio',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          const SizedBox(width: CockpitSpacing.sm),
+          const AccountBar(compact: true),
+        ],
+      ),
     );
   }
 }
@@ -137,8 +183,26 @@ class _NavRail extends StatelessWidget {
                 onTap: () => handleStudioNav(context, i),
               ),
             const Spacer(),
+            const Divider(height: 1),
             Padding(
-              padding: const EdgeInsets.all(CockpitSpacing.lg),
+              padding: const EdgeInsets.fromLTRB(
+                CockpitSpacing.md,
+                CockpitSpacing.md,
+                CockpitSpacing.md,
+                CockpitSpacing.sm,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: const AccountBar(compact: true),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                CockpitSpacing.lg,
+                0,
+                CockpitSpacing.lg,
+                CockpitSpacing.md,
+              ),
               child: Text(
                 'Boardwalks LLC',
                 style: theme.textTheme.bodySmall

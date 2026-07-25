@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:study_studio/src/data/api/api_ai_service.dart';
 import 'package:study_studio/src/data/api/api_studio_repository.dart';
 import 'package:study_studio/src/data/api/sse_client.dart';

@@ -1,4 +1,5 @@
 import '../../domain/entities/flashcard.dart';
+import '../../domain/entities/me.dart';
 import '../../domain/entities/quiz_question.dart';
 import '../../domain/entities/source.dart';
 import '../../domain/entities/studio.dart';
@@ -106,6 +107,15 @@ SourceFile sourceFileFromJson(Map<String, dynamic> j) {
     name: j['name'] as String? ?? '',
     type: _enumByName(SourceFileType.values, j['type'], SourceFileType.pdf),
     processed: j['processed'] as bool? ?? true,
+  );
+}
+
+Me meFromJson(Map<String, dynamic> j) {
+  return Me(
+    id: j['id'] as String,
+    email: j['email'] as String?,
+    displayName: j['displayName'] as String?,
+    credits: (j['credits'] as num?)?.toInt(),
   );
 }
 
