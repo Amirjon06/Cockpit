@@ -66,11 +66,24 @@ class SseClient {
     return _parse(resp);
   }
 
-  Future<List<SseEvent>> post(String path, {Map<String, dynamic>? query}) async {
-    final resp =
-        await _client.post(_uri(path, query), headers: await _headers());
+  Future<List<SseEvent>> post(
+    String path, {
+    Map<String, dynamic>? query,
+    Map<String, dynamic>? body,
+  }) async {
+    final headers = await _headers();
+    if (body != null) headers['Content-Type'] = 'application/json';
+    final resp = await _client.post(
+      _uri(path, query),
+      headers: headers,
+      body: body == null ? null : jsonEncode(body),
+    );
     return _parse(resp);
   }
+
+  /// Base URL + dev user id, exposed for the multipart upload client.
+  String get baseUrl => _baseUrl;
+  Future<Map<String, String>> authHeaders() => _headers();
 
   List<SseEvent> _parse(http.Response resp) {
     if (resp.statusCode >= 400) {

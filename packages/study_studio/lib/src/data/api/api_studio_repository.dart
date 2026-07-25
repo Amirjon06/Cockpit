@@ -21,6 +21,19 @@ class ApiStudioRepository implements StudioRepository {
   }
 
   @override
+  Future<Studio> createStudio({required String title, String? subject}) async {
+    final events = await _sse.post(
+      '/studios',
+      body: {'title': title, if (subject != null) 'subject': subject},
+    );
+    final data = events.firstWhere(
+      (e) => e.event == 'data',
+      orElse: () => throw SseException('Studio was not created'),
+    );
+    return studioFromJson(data.data);
+  }
+
+  @override
   Future<Studio> getStudio(String studioId) async {
     final events = await _sse.get('/studios/$studioId');
     final data = events.firstWhere(

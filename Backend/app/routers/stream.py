@@ -8,23 +8,49 @@ endpoints acknowledge over SSE for a uniform client.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from ..config import get_settings
-from ..db import get_shared_session, get_vector_session
+from ..db import get_cockpit_session, get_shared_session, get_vector_session
 from ..deps import get_current_user_id
-from ..dto import AskCitationDTO, MeDTO
+from ..dto import AskCitationDTO, MeDTO, StudioDTO
+from ..models.cockpit import IngestJob, Studio
 from ..seed import seed_studios
 from ..services import llm, rag
 from ..sse import done, error, event
 
 router = APIRouter(tags=["sse"])
 _STUDIOS = seed_studios()
+
+
+def _db_studio_to_dto(row: Studio) -> StudioDTO:
+    """Map a persisted studio to the wire DTO. Topics/flashcards are empty until
+    the RAG pipeline generates them from the uploaded documents."""
+    return StudioDTO(
+        id=str(row.id),
+        title=row.title,
+        subject=row.subject or "",
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+async def _db_studios_for(cockpit: AsyncSession, user_id: uuid.UUID) -> list[StudioDTO]:
+    """User's persisted studios (best-effort — empty if the DB is unavailable)."""
+    try:
+        rows = await cockpit.execute(
+            select(Studio).where(Studio.user_id == user_id).order_by(Studio.created_at.desc())
+        )
+        return [_db_studio_to_dto(r) for r in rows.scalars()]
+    except Exception:  # noqa: BLE001 — DB down in local/seed mode
+        return []
 
 
 @router.get("/me")
@@ -53,8 +79,14 @@ async def me(
 
 
 @router.get("/studios")
-async def list_studios() -> EventSourceResponse:
+async def list_studios(
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    cockpit: AsyncSession = Depends(get_cockpit_session),
+) -> EventSourceResponse:
     async def gen() -> AsyncIterator[dict]:
+        # The user's own (persisted) studios first, then the seed demos.
+        for studio in await _db_studios_for(cockpit, user_id):
+            yield event("item", studio)
         for studio in _STUDIOS.values():
             yield event("item", studio)
         yield done()
@@ -62,15 +94,87 @@ async def list_studios() -> EventSourceResponse:
     return EventSourceResponse(gen())
 
 
-@router.get("/studios/{studio_id}")
-async def get_studio(studio_id: str) -> EventSourceResponse:
+@router.post("/studios")
+async def create_studio(
+    body: dict = Body(...),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    cockpit: AsyncSession = Depends(get_cockpit_session),
+) -> EventSourceResponse:
+    title = (body.get("title") or "").strip() or "Untitled Studio"
+    subject = (body.get("subject") or "").strip() or None
+
     async def gen() -> AsyncIterator[dict]:
+        try:
+            studio = Studio(user_id=user_id, title=title, subject=subject)
+            cockpit.add(studio)
+            await cockpit.commit()
+            await cockpit.refresh(studio)
+            yield event("data", _db_studio_to_dto(studio))
+            yield done()
+        except Exception as exc:  # noqa: BLE001
+            yield error(f"Could not create studio: {exc}")
+
+    return EventSourceResponse(gen())
+
+
+@router.get("/studios/{studio_id}")
+async def get_studio(
+    studio_id: str,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    cockpit: AsyncSession = Depends(get_cockpit_session),
+) -> EventSourceResponse:
+    async def gen() -> AsyncIterator[dict]:
+        # Persisted studio (owned by the user) first, then the seed demos.
+        try:
+            sid = uuid.UUID(studio_id)
+            row = await cockpit.get(Studio, sid)
+            if row is not None and row.user_id == user_id:
+                yield event("data", _db_studio_to_dto(row))
+                yield done()
+                return
+        except Exception:  # noqa: BLE001 — non-UUID id (seed) or DB down
+            pass
         studio = _STUDIOS.get(studio_id)
         if studio is None:
             yield error(f"Studio {studio_id} not found")
             return
         yield event("data", studio)
         yield done()
+
+    return EventSourceResponse(gen())
+
+
+@router.get("/studios/{studio_id}/build/{job_id}")
+async def build_progress(
+    studio_id: str,
+    job_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    cockpit: AsyncSession = Depends(get_cockpit_session),
+) -> EventSourceResponse:
+    """Stream an ingestion job's progress (queued → running → done/failed)."""
+
+    async def gen() -> AsyncIterator[dict]:
+        last = None
+        for _ in range(600):  # ~5 min ceiling at 0.5s
+            job = await cockpit.get(IngestJob, job_id)
+            if job is None or job.user_id != user_id:
+                yield error("Job not found")
+                return
+            if job.status != last:
+                last = job.status
+                yield event(
+                    "progress",
+                    {"status": job.status, "chunks": job.chunks_written},
+                )
+            if job.status in ("done", "failed"):
+                if job.status == "failed":
+                    yield error(job.error or "Ingestion failed")
+                else:
+                    yield done()
+                return
+            await asyncio.sleep(0.5)
+            cockpit.expire_all()  # re-read on next get
+        yield error("Ingestion timed out")
 
     return EventSourceResponse(gen())
 

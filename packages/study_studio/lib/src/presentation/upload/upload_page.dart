@@ -1,7 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:cockpit_ui/cockpit_ui.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../application/providers.dart';
 import '../../domain/entities/source.dart';
 import '../widgets/studio_scaffold.dart';
 
@@ -12,32 +17,32 @@ import '../widgets/studio_scaffold.dart';
 /// AI orb and the "AI Will Build For You" grid previews what uploading unlocks.
 /// Faithful to the company mockup (Outfit type, gradient CTA, no bottom nav so
 /// the creation flow stays focused).
-class UploadPage extends StatefulWidget {
+class UploadPage extends ConsumerStatefulWidget {
   const UploadPage({super.key});
 
   @override
-  State<UploadPage> createState() => _UploadPageState();
+  ConsumerState<UploadPage> createState() => _UploadPageState();
 }
 
 class _UploadedFile {
-  const _UploadedFile({required this.name, required this.type, required this.meta});
+  const _UploadedFile({
+    required this.name,
+    required this.type,
+    required this.meta,
+    this.bytes,
+  });
   final String name;
   final SourceFileType type;
   final String meta;
+
+  /// Real file bytes when picked via file_picker (null for sample stand-ins).
+  final Uint8List? bytes;
 }
 
-class _UploadPageState extends State<UploadPage> {
+class _UploadPageState extends ConsumerState<UploadPage> {
   final _nameController = TextEditingController();
   final _files = <_UploadedFile>[];
-
-  // Realistic stand-ins for a real picker (swap for `file_picker` later).
-  static const _samples = <_UploadedFile>[
-    _UploadedFile(name: 'Lecture 5.pdf', type: SourceFileType.pdf, meta: '124 pages • 8.4 MB'),
-    _UploadedFile(name: 'Midterm Slides.pptx', type: SourceFileType.pptx, meta: '58 slides • 12.7 MB'),
-    _UploadedFile(name: 'Lecture Recording.mp3', type: SourceFileType.audio, meta: '1 hr 42 min • 96.3 MB'),
-    _UploadedFile(name: 'Chapter Notes.docx', type: SourceFileType.docx, meta: '18 pages • 1.2 MB'),
-    _UploadedFile(name: 'Whiteboard.png', type: SourceFileType.image, meta: 'Image • 3.1 MB'),
-  ];
+  bool _building = false;
 
   @override
   void initState() {
@@ -51,13 +56,62 @@ class _UploadPageState extends State<UploadPage> {
     super.dispose();
   }
 
-  void _addFile() {
-    setState(() => _files.add(_samples[_files.length % _samples.length]));
+  Future<void> _addFile() async {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    if (result == null) return;
+    setState(() {
+      for (final f in result.files) {
+        _files.add(_UploadedFile(
+          name: f.name,
+          type: _typeForExtension(f.extension),
+          meta: _formatBytes(f.size),
+          bytes: f.bytes,
+        ));
+      }
+    });
+  }
+
+  /// Create the studio, upload the picked files, then go watch the build. Falls
+  /// back to the mock build route when there's no API backend (offline dev).
+  Future<void> _build() async {
+    final upload = ref.read(uploadApiProvider);
+    final title =
+        _nameController.text.trim().isEmpty ? 'New Study Studio' : _nameController.text.trim();
+
+    if (upload == null) {
+      context.go('/study/build/job1'); // offline/mock: no real backend
+      return;
+    }
+
+    setState(() => _building = true);
+    try {
+      final studio = await ref.read(studioRepositoryProvider).createStudio(title: title);
+      String? jobId;
+      for (final f in _files) {
+        if (f.bytes == null) continue;
+        jobId = await upload.uploadDocument(
+          studioId: studio.id,
+          filename: f.name,
+          bytes: f.bytes!,
+        );
+      }
+      if (!mounted) return;
+      if (jobId != null) {
+        context.go('/study/build/$jobId?studioId=${studio.id}');
+      } else {
+        context.go('/study/${studio.id}'); // nothing to ingest → open the studio
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _building = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final canBuild = _files.isNotEmpty;
+    final canBuild = _files.isNotEmpty && !_building;
     final desktop = isDesktop(context);
 
     final uploadHead = <Widget>[
@@ -173,7 +227,7 @@ class _UploadPageState extends State<UploadPage> {
             _BuildBar(
               enabled: canBuild,
               wide: desktop,
-              onBuild: () => context.go('/study/build/job1'),
+              onBuild: _build,
             ),
           ],
         ),
@@ -185,6 +239,42 @@ class _UploadPageState extends State<UploadPage> {
 // ---------------------------------------------------------------------------
 // Header
 // ---------------------------------------------------------------------------
+
+SourceFileType _typeForExtension(String? ext) {
+  switch ((ext ?? '').toLowerCase()) {
+    case 'pdf':
+      return SourceFileType.pdf;
+    case 'doc':
+    case 'docx':
+      return SourceFileType.docx;
+    case 'ppt':
+    case 'pptx':
+      return SourceFileType.pptx;
+    case 'txt':
+    case 'md':
+      return SourceFileType.txt;
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'webp':
+      return SourceFileType.image;
+    case 'mp3':
+    case 'wav':
+    case 'm4a':
+      return SourceFileType.audio;
+    case 'mp4':
+    case 'mov':
+      return SourceFileType.video;
+    default:
+      return SourceFileType.txt;
+  }
+}
+
+String _formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
 
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.onBack});

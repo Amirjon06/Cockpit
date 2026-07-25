@@ -6,6 +6,7 @@ import '../data/api/api_account.dart';
 import '../data/api/api_ai_service.dart';
 import '../data/api/api_studio_repository.dart';
 import '../data/api/sse_client.dart';
+import '../data/api/upload_api.dart';
 import '../data/auth/auth_service.dart';
 import '../data/repositories/in_memory_studio_repository.dart';
 import '../domain/entities/me.dart';
@@ -43,6 +44,12 @@ final studioRepositoryProvider = Provider<StudioRepository>((ref) {
     return ApiStudioRepository(client: ref.watch(_sseClientProvider));
   }
   return InMemoryStudioRepository();
+});
+
+/// Multipart upload + ingest-progress (API only). Null when offline/mock.
+final uploadApiProvider = Provider<UploadApi?>((ref) {
+  if (!StudioConfig.hasApiBackend) return null;
+  return UploadApi(sse: ref.watch(_sseClientProvider));
 });
 
 /// All studios (Study Studio Home).

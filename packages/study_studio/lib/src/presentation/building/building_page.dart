@@ -1,7 +1,9 @@
 import 'package:cockpit_ui/cockpit_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../application/providers.dart';
 import '../widgets/studio_scaffold.dart';
 import 'build_preview.dart';
 
@@ -11,13 +13,17 @@ import 'build_preview.dart';
 /// Screen 2 actively assembling a learning environment. A live timeline, live
 /// preview counters, and a progress bar all animate off one controller, then
 /// the screen transitions into the built studio's dashboard.
-class BuildingPage extends StatefulWidget {
-  const BuildingPage({super.key, required this.jobId});
+class BuildingPage extends ConsumerStatefulWidget {
+  const BuildingPage({super.key, required this.jobId, this.studioId});
 
   final String jobId;
 
+  /// Set for a real backend build; when present, the screen navigates to this
+  /// studio once ingestion finishes. Null in the offline/mock flow.
+  final String? studioId;
+
   @override
-  State<BuildingPage> createState() => _BuildingPageState();
+  ConsumerState<BuildingPage> createState() => _BuildingPageState();
 }
 
 /// Total simulated build time. Swap for real backend progress later.
@@ -26,7 +32,7 @@ const _buildDuration = Duration(seconds: 14);
 /// At 100% the flow reveals the "ready" screen (Screen 4) before the dashboard.
 const _builtStudioRoute = BuildPreview.readyRoute;
 
-class _BuildingPageState extends State<BuildingPage>
+class _BuildingPageState extends ConsumerState<BuildingPage>
     with TickerProviderStateMixin {
   late final AnimationController _c;
   late final AnimationController _pulse;
@@ -55,7 +61,12 @@ class _BuildingPageState extends State<BuildingPage>
     )..repeat(reverse: true);
     _c = AnimationController(vsync: this, duration: _buildDuration)
       ..addStatusListener((s) {
-        if (s == AnimationStatus.completed && !_navigated && mounted) {
+        // In the mock flow (no real studio), the animation drives navigation.
+        // In the real flow, [_watchRealBuild] navigates when ingestion finishes.
+        if (s == AnimationStatus.completed &&
+            widget.studioId == null &&
+            !_navigated &&
+            mounted) {
           _navigated = true;
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) context.go(_builtStudioRoute);
@@ -63,6 +74,30 @@ class _BuildingPageState extends State<BuildingPage>
         }
       })
       ..forward();
+
+    if (widget.studioId != null) {
+      _watchRealBuild();
+    }
+  }
+
+  /// Waits for the real ingestion job, then opens the new studio.
+  Future<void> _watchRealBuild() async {
+    final upload = ref.read(uploadApiProvider);
+    final studioId = widget.studioId!;
+    if (upload == null) return;
+    try {
+      await upload.watchBuild(studioId: studioId, jobId: widget.jobId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ingestion issue: $e')),
+        );
+      }
+    }
+    if (!_navigated && mounted) {
+      _navigated = true;
+      context.go('/study/$studioId');
+    }
   }
 
   @override
