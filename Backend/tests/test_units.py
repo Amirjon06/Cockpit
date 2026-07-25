@@ -59,3 +59,36 @@ def test_object_key_is_user_scoped():
     key = ObjectStore.key_for(uid, did, "lecture.pdf")
     assert key == f"{uid}/{did}/lecture.pdf"
     assert key.startswith(str(uid))
+
+
+def test_generate_stub_topics_are_valid_topic_dtos():
+    import asyncio
+
+    from app.dto import TopicDTO
+    from app.services.generate import generate_topics
+
+    topics = asyncio.run(
+        generate_topics(
+            chunks=["Photosynthesis converts light energy into chemical energy."],
+            studio_id="s1",
+            api_key="",  # no key -> deterministic stub
+            model="x",
+        )
+    )
+    assert len(topics) == 1
+    payload = topics[0]
+    assert payload["studioId"] == "s1"
+    assert payload["flashcards"] and payload["quizQuestions"]
+    # The stored payload round-trips through the wire DTO.
+    dto = TopicDTO.model_validate(payload)
+    assert dto.title and dto.flashcards[0].topic_id == payload["id"]
+
+
+def test_generate_no_chunks_returns_empty():
+    import asyncio
+
+    from app.services.generate import generate_topics
+
+    assert asyncio.run(
+        generate_topics(chunks=[], studio_id="s", api_key="", model="x")
+    ) == []

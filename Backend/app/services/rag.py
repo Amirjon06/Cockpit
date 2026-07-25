@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..models.cockpit import Document, IngestJob
-from . import llm, vectorstore
+from . import generate, llm, vectorstore
 from .embeddings import get_embedder
 from .objectstore import get_object_store
 
@@ -92,6 +92,25 @@ async def run_ingest(
             for i, piece in enumerate(pieces)
         ]
         written = await vectorstore.insert_chunks(vector, rows=rows)
+
+        # Generate Study Objects (topics/flashcards/quizzes) from the chunks.
+        # Best-effort: uses the env OpenRouter key, else a deterministic stub —
+        # never fails the ingest job.
+        try:
+            topics = await generate.generate_topics(
+                chunks=pieces,
+                studio_id=str(document.studio_id),
+                api_key=settings.openrouter_api_key,
+                model=settings.openrouter_model,
+            )
+            await generate.persist_topics(
+                cockpit,
+                studio_id=document.studio_id,
+                user_id=document.user_id,
+                topics=topics,
+            )
+        except Exception:  # noqa: BLE001 — generation is best-effort
+            pass
 
         await _set_job(cockpit, job_id, status="done", chunks_written=written)
         await cockpit.execute(

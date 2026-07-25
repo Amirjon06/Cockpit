@@ -12,8 +12,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..db import CockpitBase
@@ -81,3 +81,23 @@ class IngestJob(CockpitBase):
     )
 
     document: Mapped["Document"] = relationship(back_populates="jobs")
+
+
+class GeneratedTopic(CockpitBase):
+    """A Study Object generated from the studio's RAG chunks by the LLM.
+
+    The full TopicDTO (definition, explanations, flashcards, quizzes, …) is kept
+    as a JSON `payload` so the generator can evolve the shape without a migration;
+    `get_studio` assembles `StudioDTO.topics` from these rows in `ordinal` order.
+    """
+
+    __tablename__ = "generated_topics"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    studio_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("studios.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    ordinal: Mapped[int] = mapped_column(Integer, default=0)
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

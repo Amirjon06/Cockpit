@@ -20,8 +20,8 @@ from sse_starlette.sse import EventSourceResponse
 from ..config import get_settings
 from ..db import get_cockpit_session, get_shared_session, get_vector_session
 from ..deps import get_current_user_id
-from ..dto import AskCitationDTO, MeDTO, StudioDTO
-from ..models.cockpit import IngestJob, Studio
+from ..dto import AskCitationDTO, MeDTO, StudioDTO, TopicDTO
+from ..models.cockpit import GeneratedTopic, IngestJob, Studio
 from ..seed import seed_studios
 from ..services import llm, rag
 from ..sse import done, error, event
@@ -30,15 +30,28 @@ router = APIRouter(tags=["sse"])
 _STUDIOS = seed_studios()
 
 
-def _db_studio_to_dto(row: Studio) -> StudioDTO:
-    """Map a persisted studio to the wire DTO. Topics/flashcards are empty until
-    the RAG pipeline generates them from the uploaded documents."""
+async def _load_topics(cockpit: AsyncSession, studio_id: uuid.UUID) -> list[TopicDTO]:
+    """Load the studio's generated Study Objects (topics/flashcards/quizzes)."""
+    try:
+        rows = await cockpit.execute(
+            select(GeneratedTopic)
+            .where(GeneratedTopic.studio_id == studio_id)
+            .order_by(GeneratedTopic.ordinal)
+        )
+        return [TopicDTO.model_validate(r.payload) for r in rows.scalars()]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _db_studio_to_dto(row: Studio, topics: list[TopicDTO] | None = None) -> StudioDTO:
+    """Map a persisted studio to the wire DTO (topics filled after generation)."""
     return StudioDTO(
         id=str(row.id),
         title=row.title,
         subject=row.subject or "",
         created_at=row.created_at,
         updated_at=row.updated_at,
+        topics=topics or [],
     )
 
 
@@ -48,7 +61,10 @@ async def _db_studios_for(cockpit: AsyncSession, user_id: uuid.UUID) -> list[Stu
         rows = await cockpit.execute(
             select(Studio).where(Studio.user_id == user_id).order_by(Studio.created_at.desc())
         )
-        return [_db_studio_to_dto(r) for r in rows.scalars()]
+        out = []
+        for r in rows.scalars():
+            out.append(_db_studio_to_dto(r, await _load_topics(cockpit, r.id)))
+        return out
     except Exception:  # noqa: BLE001 — DB down in local/seed mode
         return []
 
@@ -129,7 +145,8 @@ async def get_studio(
             sid = uuid.UUID(studio_id)
             row = await cockpit.get(Studio, sid)
             if row is not None and row.user_id == user_id:
-                yield event("data", _db_studio_to_dto(row))
+                topics = await _load_topics(cockpit, sid)
+                yield event("data", _db_studio_to_dto(row, topics))
                 yield done()
                 return
         except Exception:  # noqa: BLE001 — non-UUID id (seed) or DB down
