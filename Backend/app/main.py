@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
 from .config import get_settings
-from .routers import ask, documents, health, studios
+from .routers import documents, health, stream
 from .services.objectstore import get_object_store
 
 logger = logging.getLogger("cockpit")
@@ -37,17 +37,31 @@ def create_app() -> FastAPI:
         summary="Study Studio API + RAG",
         lifespan=lifespan,
     )
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origin_list,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # In dev, allow any localhost origin/port (no cookies → credentials off, so a
+    # "*" origin is permitted). In prod, lock to the configured origin list.
+    if settings.app_env == "dev":
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=False,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    else:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origin_list,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     app.include_router(health.router)
-    app.include_router(studios.router)
-    app.include_router(documents.router)
-    app.include_router(ask.router)
+    app.include_router(stream.router)  # SSE-first API — canonical (reads, /ask, acks)
+    app.include_router(documents.router)  # multipart upload -> RAG ingestion
+    # NOTE: routers/studios.py and routers/ask.py are the DB-backed JSON reference
+    # implementations. They are intentionally NOT mounted — the SSE `stream`
+    # router is canonical ("SSE for everything"). Fold DB persistence into the
+    # SSE create endpoint when user-owned studios move off the seed.
     return app
 
 

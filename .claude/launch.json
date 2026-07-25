@@ -7,6 +7,19 @@
       "runtimeArgs": ["run", "-d", "chrome", "--web-port=8765"],
       "cwd": "apps/cockpit",
       "port": 8765
+    },
+    {
+      "name": "cockpit-web-api",
+      "runtimeExecutable": "C:\\Users\\USER\\sdk\\flutter\\bin\\flutter.bat",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "chrome",
+        "--web-port=8765",
+        "--dart-define=STUDY_API_BASE_URL=http://127.0.0.1:8100"
+      ],
+      "cwd": "apps/cockpit",
+      "port": 8765
     }
   ]
 }
