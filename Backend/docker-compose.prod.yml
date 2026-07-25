@@ -26,9 +26,12 @@ services:
   # Databases + MinIO: keep them fully off the host in prod — the API reaches
   # them over the internal docker network by service name. (MinIO console 9001
   # is intentionally NOT published; use `docker compose exec` if you need it.)
+  # `!override` REPLACES the base list (compose merges/appends ports otherwise),
+  # so these get NO host mapping at all in prod — reachable only over the
+  # internal docker network (and `docker compose exec`).
   cockpit-db:
-    ports: []
+    ports: !override []
   cockpit-vectordb:
-    ports: []
+    ports: !override []
   cockpit-minio:
-    ports: []
+    ports: !override []
