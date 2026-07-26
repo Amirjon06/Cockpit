@@ -58,8 +58,10 @@ class StudyStudioModule extends CockpitModule {
         GoRoute(path: 'upload', builder: (_, _) => const UploadPage()),
         GoRoute(
           path: 'build/:jobId',
-          builder: (_, state) =>
-              BuildingPage(jobId: state.pathParameters['jobId']!),
+          builder: (_, state) => BuildingPage(
+            jobId: state.pathParameters['jobId']!,
+            studioId: state.uri.queryParameters['studioId'],
+          ),
         ),
         GoRoute(path: 'welcome', builder: (_, _) => const WelcomeBackPage()),
         GoRoute(

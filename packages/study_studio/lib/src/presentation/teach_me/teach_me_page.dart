@@ -34,6 +34,23 @@ class _TeachMePageState extends ConsumerState<TeachMePage> {
   final _messages = <_Msg>[];
   bool _thinking = false;
   bool _lessonOpen = true;
+  final _lessonKey = GlobalKey();
+
+  /// "Start Lesson" — reveal the lesson content and scroll it into focus.
+  void _startLesson() {
+    setState(() => _lessonOpen = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _lessonKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOutCubic,
+          alignment: 0.02,
+        );
+      }
+    });
+  }
 
   static const _suggestions = [
     "Explain like I'm 10",
@@ -139,12 +156,12 @@ class _TeachMePageState extends ConsumerState<TeachMePage> {
                               children: [
                                 _Hero(
                                   topic: topic,
-                                  onStart: () =>
-                                      setState(() => _lessonOpen = true),
+                                  onStart: _startLesson,
                                   onAsk: () => _askFocus.requestFocus(),
                                 ),
                                 const SizedBox(height: CockpitSpacing.xl),
                                 _LessonCard(
+                                  key: _lessonKey,
                                   topic: topic,
                                   open: _lessonOpen,
                                   onToggle: () => setState(
@@ -223,13 +240,12 @@ class _TeachMePageState extends ConsumerState<TeachMePage> {
             children: [
               _Hero(
                 topic: topic,
-                onStart: () {
-                  setState(() => _lessonOpen = true);
-                },
+                onStart: _startLesson,
                 onAsk: () => _askFocus.requestFocus(),
               ),
               const SizedBox(height: CockpitSpacing.xl),
               _LessonCard(
+                key: _lessonKey,
                 topic: topic,
                 open: _lessonOpen,
                 onToggle: () => setState(() => _lessonOpen = !_lessonOpen),
@@ -519,6 +535,7 @@ class _MetaChip extends StatelessWidget {
 
 class _LessonCard extends StatelessWidget {
   const _LessonCard({
+    super.key,
     required this.topic,
     required this.open,
     required this.onToggle,

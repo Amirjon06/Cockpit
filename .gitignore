@@ -62,11 +62,25 @@ GoogleService-Info.plist
 *.ipr
 *.iws
 
+# Python (Backend/)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
 # Secrets / local env
 .env
 .env.*
+# the env TEMPLATE (no secrets) is meant to be committed
+!.env.example
 *.pem
 secrets.dart
+# Server credentials — NEVER commit
+## Server Access.md
+Server Access.md
+**/*Server Access*.md
+Backend/.env
 
 # Claude Code local settings (keep launch.json, ignore machine-local prefs)
 .claude/settings.local.json

@@ -1,7 +1,9 @@
 import 'package:cockpit_ui/cockpit_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../application/providers.dart';
 import '../widgets/studio_scaffold.dart';
 import 'build_preview.dart';
 
@@ -11,26 +13,45 @@ import 'build_preview.dart';
 /// Screen 2 actively assembling a learning environment. A live timeline, live
 /// preview counters, and a progress bar all animate off one controller, then
 /// the screen transitions into the built studio's dashboard.
-class BuildingPage extends StatefulWidget {
-  const BuildingPage({super.key, required this.jobId});
+class BuildingPage extends ConsumerStatefulWidget {
+  const BuildingPage({super.key, required this.jobId, this.studioId});
 
   final String jobId;
 
+  /// Set for a real backend build; when present, the screen navigates to this
+  /// studio once ingestion finishes. Null in the offline/mock flow.
+  final String? studioId;
+
   @override
-  State<BuildingPage> createState() => _BuildingPageState();
+  ConsumerState<BuildingPage> createState() => _BuildingPageState();
 }
 
-/// Total simulated build time. Swap for real backend progress later.
-const _buildDuration = Duration(seconds: 14);
+/// Ramp time for the build animation. In the REAL flow the bar is capped below
+/// 100% (see [_cappedProgress]) and only completes when ingestion actually
+/// finishes — so a slow first build (model load) never shows a false "100%".
+const _buildDuration = Duration(seconds: 18);
+
+/// The real backend build only reports queued/running/done, so the animated bar
+/// is a visual — cap it here until the server says done, then snap to 100%.
+const _realBuildCap = 0.9;
 
 /// At 100% the flow reveals the "ready" screen (Screen 4) before the dashboard.
 const _builtStudioRoute = BuildPreview.readyRoute;
 
-class _BuildingPageState extends State<BuildingPage>
+class _BuildingPageState extends ConsumerState<BuildingPage>
     with TickerProviderStateMixin {
   late final AnimationController _c;
   late final AnimationController _pulse;
   bool _navigated = false;
+  bool _buildComplete = false;
+
+  /// Progress to render: in the real flow, cap the animation below 100% until
+  /// ingestion actually finishes; snap to 100% on completion.
+  double get _shownProgress {
+    if (_buildComplete) return 1;
+    if (widget.studioId != null) return _c.value * _realBuildCap;
+    return _c.value;
+  }
 
   // Build steps with the progress fraction at which each finishes.
   static const steps = <(String, double)>[
@@ -55,7 +76,12 @@ class _BuildingPageState extends State<BuildingPage>
     )..repeat(reverse: true);
     _c = AnimationController(vsync: this, duration: _buildDuration)
       ..addStatusListener((s) {
-        if (s == AnimationStatus.completed && !_navigated && mounted) {
+        // In the mock flow (no real studio), the animation drives navigation.
+        // In the real flow, [_watchRealBuild] navigates when ingestion finishes.
+        if (s == AnimationStatus.completed &&
+            widget.studioId == null &&
+            !_navigated &&
+            mounted) {
           _navigated = true;
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) context.go(_builtStudioRoute);
@@ -63,6 +89,34 @@ class _BuildingPageState extends State<BuildingPage>
         }
       })
       ..forward();
+
+    if (widget.studioId != null) {
+      _watchRealBuild();
+    }
+  }
+
+  /// Waits for the real ingestion job, then opens the new studio.
+  Future<void> _watchRealBuild() async {
+    final upload = ref.read(uploadApiProvider);
+    final studioId = widget.studioId!;
+    if (upload == null) return;
+    try {
+      await upload.watchBuild(studioId: studioId, jobId: widget.jobId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ingestion issue: $e')),
+        );
+      }
+    }
+    if (!mounted) return;
+    // Snap the bar to 100%, let it register, then open the studio.
+    setState(() => _buildComplete = true);
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!_navigated && mounted) {
+      _navigated = true;
+      context.go('/study/$studioId');
+    }
   }
 
   @override
@@ -88,7 +142,8 @@ class _BuildingPageState extends State<BuildingPage>
         child: AnimatedBuilder(
           animation: _c,
           builder: (context, _) {
-            final p = _c.value;
+            final p = _shownProgress;
+            final realBuild = widget.studioId != null;
             final active = _activeStep(p);
             final liveLabel = Text(
               'Live Preview',
@@ -140,7 +195,7 @@ class _BuildingPageState extends State<BuildingPage>
                         ),
                       ),
                       const SizedBox(height: CockpitSpacing.lg),
-                      _ProgressSection(progress: p),
+                      _ProgressSection(progress: p, realBuild: realBuild),
                       const SizedBox(height: CockpitSpacing.md),
                       const _ReassuranceNote(),
                     ],
@@ -170,7 +225,7 @@ class _BuildingPageState extends State<BuildingPage>
                     const SizedBox(height: CockpitSpacing.md),
                     _LivePreviewRow(progress: p),
                     const SizedBox(height: CockpitSpacing.xl),
-                    _ProgressSection(progress: p),
+                    _ProgressSection(progress: p, realBuild: realBuild),
                     const SizedBox(height: CockpitSpacing.lg),
                     const _ReassuranceNote(),
                   ],
@@ -818,8 +873,11 @@ class _StatCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ProgressSection extends StatelessWidget {
-  const _ProgressSection({required this.progress});
+  const _ProgressSection({required this.progress, this.realBuild = false});
   final double progress;
+
+  /// True when a real backend ingestion is running (vs the offline mock).
+  final bool realBuild;
 
   @override
   Widget build(BuildContext context) {
@@ -828,6 +886,20 @@ class _ProgressSection extends StatelessWidget {
     final violet = _shiftHue(scheme.primary, -28);
     final pct = (progress * 100).round();
     final remaining = ((1 - progress) * _buildDuration.inSeconds).ceil();
+
+    // Honest status: in the real flow we don't know an exact ETA, and the bar is
+    // held below 100% until the server finishes — so show a working message
+    // instead of a fake countdown that would freeze at "1 second".
+    final String statusText;
+    if (progress >= 1) {
+      statusText = 'Finalizing...';
+    } else if (realBuild) {
+      statusText = progress >= _realBuildCap
+          ? 'Processing on the server — the first build can take up to a minute.'
+          : 'Processing your materials on the server...';
+    } else {
+      statusText = 'Estimated time remaining: $remaining seconds';
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -887,12 +959,12 @@ class _ProgressSection extends StatelessWidget {
           children: [
             Icon(Icons.schedule, size: 14, color: scheme.onSurfaceVariant),
             const SizedBox(width: CockpitSpacing.xs),
-            Text(
-              progress >= 1
-                  ? 'Finalizing...'
-                  : 'Estimated time remaining: $remaining seconds',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
+            Expanded(
+              child: Text(
+                statusText,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
             ),
           ],
         ),

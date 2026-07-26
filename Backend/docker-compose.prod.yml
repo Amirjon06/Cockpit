@@ -1,0 +1,42 @@
+# =============================================================================
+# Cockpit Backend — production overlay.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Differences from the base stack:
+#   * cockpit-api runs with `network_mode: host` (same as octopilot-api) so it
+#     reaches the EXISTING native `octopilot` Postgres on 127.0.0.1:5432 with
+#     ZERO changes to that DB (no pg_hba edit, no restart). uvicorn binds
+#     127.0.0.1 only, so the API is NOT public — nginx fronts it for TLS.
+#   * Because the API is on the host network (not the docker bridge), it reaches
+#     its OWN db/vector/minio via loopback published ports (127.0.0.1:5433/5434/
+#     9000), which .env points at. Those ports are loopback-only (not public).
+#   * No code bind-mount / hot-reload; the image is the source of truth.
+# =============================================================================
+
+services:
+  cockpit-api:
+    build: .
+    network_mode: host
+    # Host network: bind loopback only (public exposure would be a security bug).
+    # 2 workers (not 4): each worker loads its OWN copy of the BGE-m3 embedding
+    # model (~2.5GB). This box has 15GB RAM, no swap, and runs the live octopilot
+    # app — 4 workers could OOM it. 2 keeps peak ~5GB with headroom.
+    command: >
+      uvicorn app.main:app --host 127.0.0.1 --port 8100 --workers 2
+    # Persist the downloaded embedding model across recreates (no code mount).
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    ports: !override []            # host networking can't publish ports
+    environment:
+      APP_ENV: prod
+    restart: always
+
+  # db/vector/minio on the bridge, published to loopback only so the
+  # host-networked API can reach them. `!override` REPLACES the base list
+  # (compose otherwise merges/appends ports). Never public — 127.0.0.1 bound.
+  cockpit-db:
+    ports: !override ["127.0.0.1:5433:5432"]
+  cockpit-vectordb:
+    ports: !override ["127.0.0.1:5434:5432"]
+  cockpit-minio:
+    ports: !override ["127.0.0.1:9000:9000"]

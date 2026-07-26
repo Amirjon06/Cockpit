@@ -4,9 +4,19 @@ import '../../domain/entities/source.dart';
 import '../../domain/entities/studio.dart';
 import '../../domain/entities/topic.dart';
 
-/// Canned studios that stand in for AI-extracted Study Objects until the
-/// backend / AI provider is wired. Mirrors the examples in the brief.
+/// Canned studios that stand in for AI-extracted Study Objects.
+///
+/// TEMPORARILY EMPTIED for backend testing — with this returning `[]`, the app
+/// shows no studios in offline/mock mode, so anything that appears must have
+/// come from the server API. The real mock data is preserved right below in
+/// [buildMockStudiosStashed]; to RESTORE, make this `return
+/// buildMockStudiosStashed();` again.
 List<Studio> buildMockStudios() {
+  return const [];
+}
+
+/// The stashed mock studios (bio + mbr). See [buildMockStudios].
+List<Studio> buildMockStudiosStashed() {
   final now = DateTime.now();
   return [_biologyStudio(now), _mbrStudio(now)];
 }

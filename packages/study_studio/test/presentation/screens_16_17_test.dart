@@ -1,5 +1,6 @@
 import 'package:cockpit_ui/cockpit_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:study_studio/src/presentation/analytics/study_analytics_page.dart';
 import 'package:study_studio/src/presentation/welcome/welcome_back_page.dart';
@@ -20,13 +21,15 @@ void main() {
   }
 
   Widget app(Widget home) {
-    return MaterialApp(
-      theme: CockpitTheme.build(
-        colors: CockpitColors.brand,
-        fonts: CockpitFonts.brand,
-        brightness: Brightness.light,
+    return ProviderScope(
+      child: MaterialApp(
+        theme: CockpitTheme.build(
+          colors: CockpitColors.brand,
+          fonts: CockpitFonts.brand,
+          brightness: Brightness.light,
+        ),
+        home: home,
       ),
-      home: home,
     );
   }
 

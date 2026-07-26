@@ -6,6 +6,10 @@ import '../entities/topic.dart';
 abstract interface class StudioRepository {
   Future<List<Studio>> listStudios();
 
+  /// Create a new (empty) studio owned by the current user. Topics/flashcards
+  /// are generated later from uploaded materials.
+  Future<Studio> createStudio({required String title, String? subject});
+
   Future<Studio> getStudio(String studioId);
 
   Future<Topic> getTopic(String studioId, String topicId);

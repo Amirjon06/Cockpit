@@ -18,6 +18,20 @@ class InMemoryStudioRepository implements StudioRepository {
   Future<List<Studio>> listStudios() async => _studios.values.toList();
 
   @override
+  Future<Studio> createStudio({required String title, String? subject}) async {
+    final now = DateTime.now();
+    final studio = Studio(
+      id: 'local_${now.microsecondsSinceEpoch}',
+      title: title,
+      subject: subject ?? '',
+      createdAt: now,
+      updatedAt: now,
+    );
+    _studios[studio.id] = studio;
+    return studio;
+  }
+
+  @override
   Future<Studio> getStudio(String studioId) async {
     final s = _studios[studioId];
     if (s == null) throw StateError('Studio $studioId not found');
