@@ -2,10 +2,18 @@ import 'package:cockpit_ui/cockpit_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:study_studio/src/application/providers.dart';
+import 'package:study_studio/src/data/mock/mock_data.dart';
+import 'package:study_studio/src/domain/entities/studio.dart';
 import 'package:study_studio/src/presentation/lightning_recall/lightning_recall_page.dart';
 import 'package:study_studio/src/presentation/mastery_report/mastery_report_page.dart';
 
 void main() {
+  // A rich studio (topics with varied mastery + a quiz bank) to drive the two
+  // screens. Taken from the stashed mock so the test stays independent of the
+  // offline repository, which dev empties for backend testing.
+  final Studio bio = buildMockStudiosStashed().firstWhere((s) => s.id == 'bio');
+
   Future<void> setPhoneViewport(WidgetTester tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(375, 800);
@@ -20,8 +28,11 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
   }
 
+  // Override studioProvider('bio') so both screens receive [bio] directly,
+  // regardless of whether the offline repo or the API backend is configured.
   Widget app(Widget home) {
     return ProviderScope(
+      overrides: [studioProvider('bio').overrideWith((ref) => bio)],
       child: MaterialApp(
         theme: CockpitTheme.build(
           colors: CockpitColors.brand,
@@ -33,9 +44,6 @@ void main() {
     );
   }
 
-  // Both screens read the seeded 'bio' studio (Biology Midterm Studio) through
-  // studioProvider, so the assertions below exercise real repository data.
-
   group('Screen 8 — AI Mastery Report', () {
     testWidgets('renders live studio data at a phone viewport', (tester) async {
       await setPhoneViewport(tester);
@@ -45,8 +53,8 @@ void main() {
       expect(find.text('AI Mastery Report'), findsOneWidget);
       expect(find.text('Biology Midterm Studio'), findsOneWidget);
       expect(find.text('Exam Readiness'), findsOneWidget);
-      // The weak-topic focus chip is a real seeded topic (DNA Replication,
-      // mastery 0.35), proving the report reads live studio data, not a mock.
+      // The weak-topic focus chip is a real topic (DNA Replication, mastery
+      // 0.35) from the studio, proving the report reads live data, not a mock.
       expect(find.text('DNA Replication'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
@@ -69,7 +77,7 @@ void main() {
     // timer).
     Future<void> pumpRecall(WidgetTester tester) async {
       await tester.pumpWidget(app(const LightningRecallPage(studioId: 'bio')));
-      await tester.pump(); // resolve the studioProvider future
+      await tester.pump(); // resolve the overridden studioProvider
       await tester.pump(const Duration(milliseconds: 50));
     }
 
