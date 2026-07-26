@@ -9,6 +9,7 @@ import '../../domain/entities/studio.dart';
 import '../../domain/entities/topic.dart';
 import '../format.dart';
 import '../widgets/studio_palette.dart';
+import '../widgets/studio_scaffold.dart';
 
 /// Screen 8 — AI Mastery Report.
 ///
@@ -29,7 +30,12 @@ class MasteryReportPage extends ConsumerWidget {
         bottom: false,
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
+            // Wider on desktop so cards use the space (the topic/skills section
+            // already reflows to two columns past ~400px) instead of a narrow
+            // sliver with empty side margins.
+            constraints: BoxConstraints(
+              maxWidth: isDesktop(context) ? 1040 : 480,
+            ),
             child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),

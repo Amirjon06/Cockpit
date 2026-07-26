@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../application/providers.dart';
 import '../../domain/entities/studio.dart';
 import '../widgets/studio_palette.dart';
+import '../widgets/studio_scaffold.dart';
 
 /// Seconds allowed per question before the countdown ring empties.
 const _perQuestionSeconds = 7;
@@ -29,15 +30,10 @@ class LightningRecallPage extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: async.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (studio) => _RecallSession(studio: studio),
-            ),
-          ),
+        child: async.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (studio) => _RecallSession(studio: studio),
         ),
       ),
     );
@@ -360,82 +356,198 @@ class _LightningRecallBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final summary = _SessionSummaryCard(
+      total: totalQuestions,
+      topics: topicCount,
+      weak: weakCount,
+      flashcards: flashcardCount,
+      weakTopics: weakTopics,
+    );
+    final progressBar = _QuestionProgress(
+      index: questionIndex,
+      total: totalQuestions,
+      progress: progress,
+    );
+    final flow = _FlowStateCard(streak: streak);
+    final questionCard = _QuestionCard(
+      streak: streak,
+      countdown: countdown,
+      paused: paused,
+      answered: answered,
+      showHint: showHint,
+      question: question,
+      answerController: answerController,
+      onSubmit: onSubmit,
+      onHint: onHint,
+    );
+    final feedback = showFeedback
+        ? _FeedbackCard(
+            correct: answeredCorrectly,
+            answer: question.answer,
+            explanation: question.explanation,
+          )
+        : null;
+    final metrics = showFeedback
+        ? _MetricsRow(
+            answered: answeredCount,
+            total: totalQuestions,
+            accuracy: accuracy,
+            bestStreak: bestStreak,
+          )
+        : null;
+    final controls = _ControlRow(
+      paused: paused,
+      onSkip: onSkip,
+      onTogglePause: onTogglePause,
+      onEnd: onEnd,
+    );
+    final nextButton = _GradientButton(
+      icon: Icons.bolt_rounded,
+      label: 'Next Question',
+      onTap: onNext,
+    );
+
     return Column(
       children: [
         _Header(examTitle: examTitle, onBack: onBack),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: CockpitSpacing.xl),
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: CockpitSpacing.lg,
+          child: isDesktop(context)
+              ? _desktop(
+                  summary: summary,
+                  progressBar: progressBar,
+                  flow: flow,
+                  questionCard: questionCard,
+                  feedback: feedback,
+                  metrics: metrics,
+                  controls: controls,
+                  nextButton: nextButton,
+                )
+              : _mobile(
+                  summary: summary,
+                  progressBar: progressBar,
+                  flow: flow,
+                  questionCard: questionCard,
+                  feedback: feedback,
+                  metrics: metrics,
+                  controls: controls,
+                  nextButton: nextButton,
                 ),
+        ),
+      ],
+    );
+  }
+
+  /// Mobile / narrow: single stacked column, centred at a comfortable width.
+  Widget _mobile({
+    required Widget summary,
+    required Widget progressBar,
+    required Widget flow,
+    required Widget questionCard,
+    required Widget? feedback,
+    required Widget? metrics,
+    required Widget controls,
+    required Widget nextButton,
+  }) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: CockpitSpacing.xl),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: CockpitSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  summary,
+                  const SizedBox(height: CockpitSpacing.lg),
+                  progressBar,
+                  const SizedBox(height: CockpitSpacing.md),
+                  flow,
+                  const SizedBox(height: CockpitSpacing.lg),
+                  questionCard,
+                  if (feedback != null) ...[
+                    const SizedBox(height: CockpitSpacing.md),
+                    feedback,
+                    const SizedBox(height: CockpitSpacing.md),
+                    metrics!,
+                  ],
+                  const SizedBox(height: CockpitSpacing.lg),
+                  controls,
+                  const SizedBox(height: CockpitSpacing.md),
+                  nextButton,
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Desktop / wide: the active question on the left, session context on the
+  /// right — so the horizontal space is used instead of empty side margins.
+  Widget _desktop({
+    required Widget summary,
+    required Widget progressBar,
+    required Widget flow,
+    required Widget questionCard,
+    required Widget? feedback,
+    required Widget? metrics,
+    required Widget controls,
+    required Widget nextButton,
+  }) {
+    return ContentColumn(
+      maxWidth: 1120,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(40, 8, 40, 24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left — the question you're answering (the focus).
+            Expanded(
+              flex: 6,
+              child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _SessionSummaryCard(
-                      total: totalQuestions,
-                      topics: topicCount,
-                      weak: weakCount,
-                      flashcards: flashcardCount,
-                      weakTopics: weakTopics,
-                    ),
+                    progressBar,
                     const SizedBox(height: CockpitSpacing.lg),
-                    _QuestionProgress(
-                      index: questionIndex,
-                      total: totalQuestions,
-                      progress: progress,
-                    ),
-                    const SizedBox(height: CockpitSpacing.md),
-                    _FlowStateCard(streak: streak),
-                    const SizedBox(height: CockpitSpacing.lg),
-                    _QuestionCard(
-                      streak: streak,
-                      countdown: countdown,
-                      paused: paused,
-                      answered: answered,
-                      showHint: showHint,
-                      question: question,
-                      answerController: answerController,
-                      onSubmit: onSubmit,
-                      onHint: onHint,
-                    ),
-                    if (showFeedback) ...[
+                    questionCard,
+                    if (feedback != null) ...[
                       const SizedBox(height: CockpitSpacing.md),
-                      _FeedbackCard(
-                        correct: answeredCorrectly,
-                        answer: question.answer,
-                        explanation: question.explanation,
-                      ),
-                      const SizedBox(height: CockpitSpacing.md),
-                      _MetricsRow(
-                        answered: answeredCount,
-                        total: totalQuestions,
-                        accuracy: accuracy,
-                        bestStreak: bestStreak,
-                      ),
+                      feedback,
                     ],
                     const SizedBox(height: CockpitSpacing.lg),
-                    _ControlRow(
-                      paused: paused,
-                      onSkip: onSkip,
-                      onTogglePause: onTogglePause,
-                      onEnd: onEnd,
-                    ),
+                    controls,
                     const SizedBox(height: CockpitSpacing.md),
-                    _GradientButton(
-                      icon: Icons.bolt_rounded,
-                      label: 'Next Question',
-                      onTap: onNext,
-                    ),
+                    nextButton,
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 32),
+            // Right — session summary, flow state, live metrics.
+            Expanded(
+              flex: 4,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    summary,
+                    const SizedBox(height: CockpitSpacing.lg),
+                    flow,
+                    if (metrics != null) ...[
+                      const SizedBox(height: CockpitSpacing.lg),
+                      metrics,
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
