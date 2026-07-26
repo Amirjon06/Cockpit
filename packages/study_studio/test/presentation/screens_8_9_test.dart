@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:study_studio/src/application/providers.dart';
 import 'package:study_studio/src/data/mock/mock_data.dart';
+import 'package:study_studio/src/domain/entities/quiz_question.dart';
 import 'package:study_studio/src/domain/entities/studio.dart';
+import 'package:study_studio/src/domain/entities/topic.dart';
 import 'package:study_studio/src/presentation/lightning_recall/lightning_recall_page.dart';
 import 'package:study_studio/src/presentation/mastery_report/mastery_report_page.dart';
 
@@ -106,5 +108,64 @@ void main() {
 
       await tester.pumpWidget(const SizedBox()); // dispose → cancel timer
     });
+
+    testWidgets(
+      'long weak-topic names do not overflow the session summary panel',
+      (tester) async {
+        // A weak topic with a very long name — the dense 3-column desktop
+        // session-summary panel must ellipsize its chip, not overflow.
+        const longTopic = Topic(
+          id: 'isa',
+          studioId: 'bio',
+          title: 'Instruction Set Architecture and Execution Cycle Fundamentals',
+          subject: 'Computer Science',
+          definition: '',
+          simpleExplanation: '',
+          detailedExplanation: '',
+          whyItMatters: '',
+          mastery: 0.2, // weak
+          quizQuestions: [
+            QuizQuestion(
+              id: 'isa_q',
+              topicId: 'isa',
+              type: QuizType.shortAnswer,
+              question: 'What is the fetch-decode-execute cycle?',
+              answer: 'the instruction cycle',
+              explanation: 'It is the basic CPU operation cycle.',
+            ),
+          ],
+        );
+        final studio = bio.copyWith(topics: [...bio.topics, longTopic]);
+
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(1281, 720);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [studioProvider('bio').overrideWith((ref) => studio)],
+            child: MaterialApp(
+              theme: CockpitTheme.build(
+                colors: CockpitColors.brand,
+                fonts: CockpitFonts.brand,
+                brightness: Brightness.light,
+              ),
+              home: const LightningRecallPage(studioId: 'bio'),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(
+          find.textContaining('Instruction Set Architecture'),
+          findsWidgets,
+        );
+        expect(tester.takeException(), isNull);
+
+        await tester.pumpWidget(const SizedBox()); // dispose → cancel timer
+      },
+    );
   });
 }

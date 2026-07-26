@@ -13,6 +13,9 @@ import '../widgets/studio_scaffold.dart';
 /// Seconds allowed per question before the countdown ring empties.
 const _perQuestionSeconds = 7;
 
+/// Weak-topic chips shown in the session summary before collapsing to "+N more".
+const _maxWeakChips = 8;
+
 /// Screen 9 — Lightning Recall.
 ///
 /// Rapid-fire recall session with countdown timer, streak tracking, and
@@ -498,60 +501,60 @@ class _LightningRecallBody extends StatelessWidget {
     required Widget controls,
     required Widget nextButton,
   }) {
-    return ContentColumn(
-      maxWidth: 1280,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left — live session feedback (flow state, metrics).
-            Expanded(
-              flex: 3,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    flow,
-                    if (metrics != null) ...[
-                      const SizedBox(height: CockpitSpacing.lg),
-                      metrics,
-                    ],
+    return Padding(
+      // Full viewport width (minus a small gutter) — no centred max-width cap,
+      // so the three columns fill the screen instead of leaving big side
+      // margins. Right column is wider (flex 4) for the dense session summary.
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left — live session feedback (flow state, metrics).
+          Expanded(
+            flex: 3,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  flow,
+                  if (metrics != null) ...[
+                    const SizedBox(height: CockpitSpacing.lg),
+                    metrics,
                   ],
-                ),
+                ],
               ),
             ),
-            const SizedBox(width: 28),
-            // Centre — the question you're answering (the main focus).
-            Expanded(
-              flex: 5,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    progressBar,
-                    const SizedBox(height: CockpitSpacing.lg),
-                    questionCard,
-                    if (feedback != null) ...[
-                      const SizedBox(height: CockpitSpacing.md),
-                      feedback,
-                    ],
-                    const SizedBox(height: CockpitSpacing.lg),
-                    controls,
+          ),
+          const SizedBox(width: 24),
+          // Centre — the question you're answering (the main focus).
+          Expanded(
+            flex: 5,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  progressBar,
+                  const SizedBox(height: CockpitSpacing.lg),
+                  questionCard,
+                  if (feedback != null) ...[
                     const SizedBox(height: CockpitSpacing.md),
-                    nextButton,
+                    feedback,
                   ],
-                ),
+                  const SizedBox(height: CockpitSpacing.lg),
+                  controls,
+                  const SizedBox(height: CockpitSpacing.md),
+                  nextButton,
+                ],
               ),
             ),
-            const SizedBox(width: 28),
-            // Right — session summary + weak topics.
-            Expanded(
-              flex: 3,
-              child: SingleChildScrollView(child: summary),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 24),
+          // Right — session summary + weak topics.
+          Expanded(
+            flex: 4,
+            child: SingleChildScrollView(child: summary),
+          ),
+        ],
       ),
     );
   }
@@ -816,12 +819,53 @@ class _SessionSummaryCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  for (final topic in weakTopics) TagChip(label: topic),
+                  for (final topic in weakTopics.take(_maxWeakChips))
+                    _TopicChip(label: topic),
+                  if (weakTopics.length > _maxWeakChips)
+                    _TopicChip(
+                      label: '+${weakTopics.length - _maxWeakChips} more',
+                    ),
                 ],
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// A weak-topic pill. Unlike the shared [TagChip], it caps its width and
+/// ellipsizes the label so long topic names (e.g. "Instruction Set Architecture
+/// and Execution Cycle") never overflow the dense session-summary panel.
+class _TopicChip extends StatelessWidget {
+  const _TopicChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final c = theme.colorScheme.secondary;
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 200),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: CockpitSpacing.md,
+          vertical: CockpitSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(CockpitRadii.pill),
+          border: Border.all(color: c.withValues(alpha: 0.4)),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelMedium?.copyWith(color: c),
+        ),
       ),
     );
   }
