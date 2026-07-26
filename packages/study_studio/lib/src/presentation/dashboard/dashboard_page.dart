@@ -646,7 +646,7 @@ class _LearningModeGrid extends StatelessWidget {
         title: 'Lightning Recall',
         desc: 'Rapid-fire questions for quick recall practice.',
         count: '${studio.flashcardCount + studio.quizCount} questions',
-        onTap: () => soon('Lightning Recall'),
+        onTap: () => context.go('$base/recall'),
       ),
       _Mode(
         icon: Icons.style_rounded,
