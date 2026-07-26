@@ -94,14 +94,24 @@ async def run_ingest(
         written = await vectorstore.insert_chunks(vector, rows=rows)
 
         # Generate Study Objects (topics/flashcards/quizzes) from the chunks.
-        # Best-effort: uses the env OpenRouter key, else a deterministic stub —
-        # never fails the ingest job.
+        # Resolve the real OpenRouter key/model from the shared octopilot DB
+        # (same as /ask) so generation uses the LLM, not the offline stub. Falls
+        # back to env, then to the deterministic stub. Best-effort — never fails
+        # the ingest job.
         try:
+            from ..db import SharedSession
+
+            api_key = settings.openrouter_api_key
+            model = settings.openrouter_model
+            if SharedSession is not None:
+                async with SharedSession() as shared:
+                    api_key, model = await llm.resolve_credentials(shared)
+
             topics = await generate.generate_topics(
                 chunks=pieces,
                 studio_id=str(document.studio_id),
-                api_key=settings.openrouter_api_key,
-                model=settings.openrouter_model,
+                api_key=api_key,
+                model=model,
             )
             await generate.persist_topics(
                 cockpit,
