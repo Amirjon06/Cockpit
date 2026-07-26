@@ -485,8 +485,9 @@ class _LightningRecallBody extends StatelessWidget {
     );
   }
 
-  /// Desktop / wide: the active question on the left, session context on the
-  /// right — so the horizontal space is used instead of empty side margins.
+  /// Desktop / wide: THREE columns with the question centred as the focus —
+  /// left = live session feedback, centre = the question (widest), right =
+  /// session summary + weak topics.
   Widget _desktop({
     required Widget summary,
     required Widget progressBar,
@@ -498,15 +499,32 @@ class _LightningRecallBody extends StatelessWidget {
     required Widget nextButton,
   }) {
     return ContentColumn(
-      maxWidth: 1120,
+      maxWidth: 1280,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(40, 8, 40, 24),
+        padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left — the question you're answering (the focus).
+            // Left — live session feedback (flow state, metrics).
             Expanded(
-              flex: 6,
+              flex: 3,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    flow,
+                    if (metrics != null) ...[
+                      const SizedBox(height: CockpitSpacing.lg),
+                      metrics,
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 28),
+            // Centre — the question you're answering (the main focus).
+            Expanded(
+              flex: 5,
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -526,24 +544,11 @@ class _LightningRecallBody extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 32),
-            // Right — session summary, flow state, live metrics.
+            const SizedBox(width: 28),
+            // Right — session summary + weak topics.
             Expanded(
-              flex: 4,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    summary,
-                    const SizedBox(height: CockpitSpacing.lg),
-                    flow,
-                    if (metrics != null) ...[
-                      const SizedBox(height: CockpitSpacing.lg),
-                      metrics,
-                    ],
-                  ],
-                ),
-              ),
+              flex: 3,
+              child: SingleChildScrollView(child: summary),
             ),
           ],
         ),
