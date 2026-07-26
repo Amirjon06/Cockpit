@@ -105,13 +105,18 @@ async def run_ingest(
             model = settings.openrouter_model
             if SharedSession is not None:
                 async with SharedSession() as shared:
-                    api_key, model = await llm.resolve_credentials(shared)
+                    api_key, primary = await llm.resolve_credentials(shared)
+                    # Use the FAST secondary model for bulk generation (many
+                    # per-lesson calls); the primary stays for interactive /ask.
+                    model = await llm.get_setting(shared, "secondary_model", primary)
 
             topics = await generate.generate_topics(
                 chunks=pieces,
                 studio_id=str(document.studio_id),
                 api_key=api_key,
                 model=model,
+                user_id=document.user_id,
+                vector=vector,
             )
             await generate.persist_topics(
                 cockpit,

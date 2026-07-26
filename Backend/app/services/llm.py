@@ -53,30 +53,53 @@ async def resolve_credentials(shared: AsyncSession | None) -> tuple[str, str]:
     return api_key, model
 
 
+async def get_setting(
+    shared: AsyncSession | None, key: str, default: str = ""
+) -> str:
+    """Read a value from octopilot `system_settings` (e.g. secondary_model)."""
+    if shared is None:
+        return default
+    row = await shared.execute(
+        select(SystemSetting.value).where(SystemSetting.key == key)
+    )
+    return row.scalar_one_or_none() or default
+
+
 def build_context_block(chunks: list[str]) -> str:
     return "\n\n".join(f"[{i + 1}] {c}" for i, c in enumerate(chunks))
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8))
-async def generate(*, api_key: str, model: str, question: str, context: str) -> str:
+async def generate(
+    *,
+    api_key: str,
+    model: str,
+    question: str,
+    context: str,
+    system: str | None = None,
+    max_tokens: int | None = None,
+    temperature: float = 0.2,
+) -> str:
     settings = get_settings()
     if not api_key:
         raise RuntimeError(
             "No OpenRouter API key. Set OPENROUTER_API_KEY or configure "
             "SHARED_DATABASE_URL so the key can be read from api_keys."
         )
-    payload = {
+    payload: dict = {
         "model": model,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system or SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": f"Context:\n{context}\n\nQuestion: {question}",
             },
         ],
-        "temperature": 0.2,
+        "temperature": temperature,
     }
-    async with httpx.AsyncClient(timeout=60) as client:
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
+    async with httpx.AsyncClient(timeout=180) as client:
         resp = await client.post(
             f"{settings.openrouter_base_url}/chat/completions",
             headers={
