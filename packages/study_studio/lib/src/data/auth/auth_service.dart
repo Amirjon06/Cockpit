@@ -17,6 +17,12 @@ abstract interface class AuthService {
   /// Whether a user is currently signed in.
   bool get isSignedIn;
 
+  /// Emits whenever the auth state changes (sign in / out / token refresh).
+  /// `true` when signed in. Data providers watch this to refetch user-scoped
+  /// data with the new token — otherwise a fetch made while signed out (e.g. the
+  /// studio list on first load) stays stale after sign-in.
+  Stream<bool> authStateChanges();
+
   Future<void> signIn();
 
   Future<void> signOut();
@@ -31,6 +37,9 @@ class StubAuthService implements AuthService {
 
   @override
   bool get isSignedIn => false;
+
+  @override
+  Stream<bool> authStateChanges() => Stream.value(false);
 
   @override
   Future<void> signIn() async {}

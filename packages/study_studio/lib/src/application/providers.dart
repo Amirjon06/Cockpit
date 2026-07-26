@@ -32,6 +32,13 @@ final _sseClientProvider = Provider<SseClient>((ref) {
   return client;
 });
 
+/// Auth state (signed in?), driven by Firebase's authStateChanges stream.
+/// User-scoped data providers watch this so they refetch with the new token on
+/// sign in/out (and when the token is restored from persistence on reload).
+final authStateProvider = StreamProvider<bool>((ref) {
+  return ref.watch(authServiceProvider).authStateChanges();
+});
+
 /// AI boundary. Uses the backend `/ask` stream when `STUDY_API_BASE_URL` is set,
 /// otherwise the offline stub.
 final aiServiceProvider = Provider<AiService>((ref) {
@@ -58,11 +65,13 @@ final uploadApiProvider = Provider<UploadApi?>((ref) {
 
 /// All studios (Study Studio Home).
 final studioListProvider = FutureProvider<List<Studio>>((ref) {
+  ref.watch(authStateProvider); // refetch on sign in/out
   return ref.watch(studioRepositoryProvider).listStudios();
 });
 
 /// One studio by id (Dashboard, Topic Library, Progress).
 final studioProvider = FutureProvider.family<Studio, String>((ref, studioId) {
+  ref.watch(authStateProvider); // refetch on sign in/out
   return ref.watch(studioRepositoryProvider).getStudio(studioId);
 });
 
@@ -71,6 +80,7 @@ final studioProvider = FutureProvider.family<Studio, String>((ref, studioId) {
 /// still renders in offline/mock mode. This is the auth starting point — swap
 /// the placeholder for the real Octopilot/Firebase session.
 final meProvider = FutureProvider<Me>((ref) async {
+  ref.watch(authStateProvider); // refetch on sign in/out
   if (StudioConfig.hasApiBackend) {
     return ApiAccount(client: ref.watch(_sseClientProvider)).me();
   }
@@ -85,5 +95,6 @@ typedef TopicKey = ({String studioId, String topicId});
 
 /// One Study Object by id (Topic Detail, Teach Me, etc.).
 final topicProvider = FutureProvider.family<Topic, TopicKey>((ref, key) {
+  ref.watch(authStateProvider); // refetch on sign in/out
   return ref.watch(studioRepositoryProvider).getTopic(key.studioId, key.topicId);
 });

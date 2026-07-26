@@ -20,6 +20,10 @@ class FirebaseAuthService implements AuthService {
   bool get isSignedIn => _auth.currentUser != null;
 
   @override
+  Stream<bool> authStateChanges() =>
+      _auth.authStateChanges().map((user) => user != null);
+
+  @override
   Future<void> signIn() async {
     // Google is Octopilot's primary provider. On web, popup; elsewhere the
     // platform Google flow (wire google_sign_in for mobile when needed).
