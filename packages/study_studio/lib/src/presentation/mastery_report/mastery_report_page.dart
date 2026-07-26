@@ -4,13 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../application/providers.dart';
-import '../building/build_preview.dart';
+import '../../domain/entities/flashcard.dart';
+import '../../domain/entities/studio.dart';
+import '../../domain/entities/topic.dart';
+import '../format.dart';
+import '../widgets/studio_palette.dart';
 
 /// Screen 8 — AI Mastery Report.
 ///
 /// Post-session analytics summarising mastery, learning activities, topic
-/// breakdown, and a personalised study plan. Mock data mirrors the design
-/// reference until the backend scoring pipeline is wired.
+/// breakdown, and a personalised study plan. Every value is derived from the
+/// live [Studio] loaded through [studioProvider]; nothing here is hard-coded.
 class MasteryReportPage extends ConsumerWidget {
   const MasteryReportPage({super.key, required this.studioId});
 
@@ -29,10 +33,7 @@ class MasteryReportPage extends ConsumerWidget {
             child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
-              data: (_) => _MasteryReportBody(
-                studioId: studioId,
-                examTitle: BuildPreview.studioName,
-              ),
+              data: (studio) => _MasteryReportBody(studio: studio),
             ),
           ),
         ),
@@ -42,23 +43,30 @@ class MasteryReportPage extends ConsumerWidget {
 }
 
 class _MasteryReportBody extends StatelessWidget {
-  const _MasteryReportBody({required this.studioId, required this.examTitle});
+  const _MasteryReportBody({required this.studio});
 
-  final String studioId;
-  final String examTitle;
-
-  static const _mastery = 0.84;
-  static const _sessionDate = 'May 18, 2025';
+  final Studio studio;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final base = '/study/$studioId';
+    final base = '/study/${studio.id}';
+
+    final mastery = studio.overallMastery;
+    final sessionDate = relativeDay(studio.lastStudied ?? studio.updatedAt);
+    final topics = [...studio.topics]
+      ..sort((a, b) => b.mastery.compareTo(a.mastery));
+    final strong = topics.where((t) => t.mastery >= 0.8).toList();
+    final weak = studio.weakTopics;
+    final minutesToMastery = weak.fold<int>(
+      0,
+      (sum, t) => sum + t.estimatedStudyTimeMinutes,
+    );
 
     return Column(
       children: [
-        _Header(examTitle: examTitle, onBack: () => context.go(base)),
+        _Header(examTitle: studio.title, onBack: () => context.go(base)),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.only(bottom: CockpitSpacing.xl),
@@ -70,7 +78,7 @@ class _MasteryReportBody extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    "Today's Session  •  $_sessionDate",
+                    'This Studio  •  $sessionDate',
                     textAlign: TextAlign.right,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
@@ -86,9 +94,16 @@ class _MasteryReportBody extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: CockpitSpacing.md),
-                    _MasteryOverview(mastery: _mastery),
+                    _MasteryOverview(
+                      mastery: mastery,
+                      strongCount: strong.length,
+                      totalCount: topics.length,
+                    ),
                     const SizedBox(height: CockpitSpacing.lg),
-                    const _AiAssessmentCard(),
+                    _AiAssessmentCard(
+                      focusTopics: weak,
+                      minutesToMastery: minutesToMastery,
+                    ),
                   ],
                 ),
               ),
@@ -103,7 +118,7 @@ class _MasteryReportBody extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: CockpitSpacing.md),
-              const _LearningJourneyRow(),
+              _LearningJourneyRow(studio: studio),
               const SizedBox(height: CockpitSpacing.xl),
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -111,33 +126,39 @@ class _MasteryReportBody extends StatelessWidget {
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
+                    final byTopic = _MasteryByTopicCard(topics: topics);
+                    final confidence = _ConfidencePerformanceCard(
+                      strong: strong,
+                      weak: weak,
+                    );
+                    final skills = _SkillsRow(strong: strong, weak: weak);
                     final wide = constraints.maxWidth >= 400;
                     if (wide) {
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Expanded(flex: 3, child: _MasteryByTopicCard()),
+                          Expanded(flex: 3, child: byTopic),
                           const SizedBox(width: CockpitSpacing.md),
                           Expanded(
                             flex: 2,
                             child: Column(
                               children: [
-                                const _ConfidencePerformanceCard(),
+                                confidence,
                                 const SizedBox(height: CockpitSpacing.md),
-                                const _SkillsRow(),
+                                skills,
                               ],
                             ),
                           ),
                         ],
                       );
                     }
-                    return const Column(
+                    return Column(
                       children: [
-                        _MasteryByTopicCard(),
-                        SizedBox(height: CockpitSpacing.md),
-                        _ConfidencePerformanceCard(),
-                        SizedBox(height: CockpitSpacing.md),
-                        _SkillsRow(),
+                        byTopic,
+                        const SizedBox(height: CockpitSpacing.md),
+                        confidence,
+                        const SizedBox(height: CockpitSpacing.md),
+                        skills,
                       ],
                     );
                   },
@@ -151,17 +172,13 @@ class _MasteryReportBody extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: CockpitSpacing.lg),
-                    const _StudyPlanCard(),
+                    _StudyPlanCard(weak: weak, mastery: mastery),
                     const SizedBox(height: CockpitSpacing.xl),
                     _GradientButton(
                       icon: Icons.auto_awesome,
                       label: 'Explore Knowledge Graph',
                       trailing: true,
-                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Knowledge Graph — coming soon'),
-                        ),
-                      ),
+                      onTap: () => context.go('$base/knowledge-graph'),
                     ),
                     const SizedBox(height: CockpitSpacing.md),
                     Center(
@@ -270,16 +287,22 @@ class _Header extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _MasteryOverview extends StatelessWidget {
-  const _MasteryOverview({required this.mastery});
+  const _MasteryOverview({
+    required this.mastery,
+    required this.strongCount,
+    required this.totalCount,
+  });
 
   final double mastery;
+  final int strongCount;
+  final int totalCount;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final pct = (mastery * 100).round();
-    final success = CockpitColors.brand.success;
+    final (label, color) = _readiness(mastery);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,7 +328,7 @@ class _MasteryOverview extends StatelessWidget {
                 width: 120,
                 height: 120,
                 child: CircularProgressIndicator(
-                  value: mastery,
+                  value: mastery.clamp(0, 1),
                   strokeWidth: 10,
                   strokeCap: StrokeCap.round,
                   valueColor: AlwaysStoppedAnimation(scheme.primary),
@@ -347,19 +370,19 @@ class _MasteryOverview extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    'High',
+                    label,
                     style: theme.textTheme.titleLarge?.copyWith(
-                      color: success,
+                      color: color,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(width: CockpitSpacing.xs),
-                  Icon(Icons.trending_up_rounded, size: 20, color: success),
+                  Icon(Icons.trending_up_rounded, size: 20, color: color),
                 ],
               ),
               const SizedBox(height: CockpitSpacing.sm),
               Text(
-                'Based on all learning activities completed today.',
+                'Based on the mastery of every Study Object in this studio.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                   height: 1.35,
@@ -381,14 +404,14 @@ class _MasteryOverview extends StatelessWidget {
                 child: Row(
                   children: [
                     Icon(
-                      Icons.trending_up_rounded,
+                      Icons.check_circle_outline_rounded,
                       size: 18,
                       color: scheme.primary,
                     ),
                     const SizedBox(width: CockpitSpacing.sm),
                     Expanded(
                       child: Text(
-                        '+18% improvement since you created this Study Studio',
+                        '$strongCount of $totalCount topics above 80% mastery',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: scheme.primary,
                           fontWeight: FontWeight.w600,
@@ -407,17 +430,35 @@ class _MasteryOverview extends StatelessWidget {
   }
 }
 
+(String, Color) _readiness(double mastery) {
+  if (mastery >= 0.8) return ('High', CockpitColors.brand.success);
+  if (mastery >= 0.6) return ('Moderate', CockpitColors.brand.warning);
+  return ('Building', CockpitColors.brand.error);
+}
+
 // ---------------------------------------------------------------------------
 // AI Assessment
 // ---------------------------------------------------------------------------
 
 class _AiAssessmentCard extends StatelessWidget {
-  const _AiAssessmentCard();
+  const _AiAssessmentCard({
+    required this.focusTopics,
+    required this.minutesToMastery,
+  });
+
+  final List<Topic> focusTopics;
+  final int minutesToMastery;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final hasFocus = focusTopics.isNotEmpty;
+    final summary = hasFocus
+        ? 'Solid progress. Your strongest topics are locked in — a little more '
+              'work on the areas below takes you to full mastery.'
+        : 'Outstanding — every topic in this studio is above the weak '
+              'threshold. Keep reviewing to stay sharp.';
 
     return Container(
       padding: const EdgeInsets.all(CockpitSpacing.lg),
@@ -470,8 +511,7 @@ class _AiAssessmentCard extends StatelessWidget {
                     ),
                     const SizedBox(height: CockpitSpacing.xs),
                     Text(
-                      "Excellent progress today. You've demonstrated strong "
-                      'conceptual understanding and consistent recall.',
+                      summary,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                         height: 1.4,
@@ -496,64 +536,64 @@ class _AiAssessmentCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: CockpitSpacing.lg),
-          Text(
-            'To reach full mastery, focus on:',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
+          if (hasFocus) ...[
+            const SizedBox(height: CockpitSpacing.lg),
+            Text(
+              'To reach full mastery, focus on:',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: CockpitSpacing.sm),
-          Wrap(
-            spacing: CockpitSpacing.sm,
-            runSpacing: CockpitSpacing.sm,
-            children: const [
-              TagChip(label: 'Routing'),
-              TagChip(label: 'Subnetting'),
-              TagChip(label: 'TCP/IP troubleshooting'),
-            ],
-          ),
-          const SizedBox(height: CockpitSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: Container(height: 1, color: scheme.outlineVariant),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: CockpitSpacing.lg,
+            const SizedBox(height: CockpitSpacing.sm),
+            Wrap(
+              spacing: CockpitSpacing.sm,
+              runSpacing: CockpitSpacing.sm,
+              children: [for (final t in focusTopics) TagChip(label: t.title)],
+            ),
+            const SizedBox(height: CockpitSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(height: 1, color: scheme.outlineVariant),
                 ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Est. time to 95% mastery',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: CockpitSpacing.xs),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '38 min',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CockpitSpacing.lg,
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Est. study time',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
                         ),
-                        const SizedBox(width: CockpitSpacing.xs),
-                        Icon(Icons.schedule, size: 18, color: scheme.primary),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: CockpitSpacing.xs),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$minutesToMastery min',
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(width: CockpitSpacing.xs),
+                          Icon(Icons.schedule, size: 18, color: scheme.primary),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Container(height: 1, color: scheme.outlineVariant),
-              ),
-            ],
-          ),
+                Expanded(
+                  child: Container(height: 1, color: scheme.outlineVariant),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -564,55 +604,79 @@ class _AiAssessmentCard extends StatelessWidget {
 // Learning journey
 // ---------------------------------------------------------------------------
 
-class _LearningJourneyRow extends StatelessWidget {
-  const _LearningJourneyRow();
+class _LearningJourneyRow extends StatefulWidget {
+  const _LearningJourneyRow({required this.studio});
+
+  final Studio studio;
+
+  @override
+  State<_LearningJourneyRow> createState() => _LearningJourneyRowState();
+}
+
+class _LearningJourneyRowState extends State<_LearningJourneyRow> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    const items = [
+    final studio = widget.studio;
+    final masteredCards = studio.topics
+        .expand((t) => t.flashcards)
+        .where((f) => f.status == FlashcardStatus.review)
+        .length;
+
+    final items = [
       _JourneyItem(
-        icon: Icons.chat_bubble_outline_rounded,
-        iconColor: Color(0xFF30A46C),
-        title: 'Teach Me',
-        subtitle: 'Completed',
-        subtitleColor: Color(0xFF30A46C),
-        completed: true,
+        icon: Icons.menu_book_rounded,
+        iconColor: StudyPalette.violet,
+        title: 'Study Objects',
+        subtitle: '${studio.topicCount}',
+        detail: 'Topics',
       ),
       _JourneyItem(
         icon: Icons.help_outline_rounded,
-        iconColor: Color(0xFF8B5CF6),
+        iconColor: StudyPalette.violet,
         title: 'Quiz Me',
-        subtitle: '15 / 18',
-        detail: '83%',
-      ),
-      _JourneyItem(
-        icon: Icons.bolt_rounded,
-        iconColor: Color(0xFF8B5CF6),
-        title: 'Lightning Recall',
-        subtitle: '91%',
-        detail: 'Recall Speed',
+        subtitle: '${studio.quizCount}',
+        detail: 'Questions',
       ),
       _JourneyItem(
         icon: Icons.style_rounded,
-        iconColor: Color(0xFF8B5CF6),
+        iconColor: StudyPalette.violet,
         title: 'Flashcards',
-        subtitle: '81%',
-        detail: 'Mastery',
+        subtitle: '${studio.flashcardCount}',
+        detail: 'Cards',
       ),
       _JourneyItem(
-        icon: Icons.track_changes_rounded,
-        iconColor: Color(0xFFE5484D),
-        title: 'Scenario Mode',
-        subtitle: '12 / 14',
-        detail: 'Solved',
+        icon: Icons.check_circle_outline_rounded,
+        iconColor: CockpitColors.brand.success,
+        title: 'Mastered Cards',
+        subtitle: '$masteredCards',
+        subtitleColor: CockpitColors.brand.success,
+        detail: 'In review',
+      ),
+      _JourneyItem(
+        icon: Icons.local_fire_department_rounded,
+        iconColor: CockpitColors.brand.error,
+        title: 'Weak Topics',
+        subtitle: '${studio.weakTopics.length}',
+        subtitleColor: CockpitColors.brand.error,
+        detail: 'To review',
       ),
     ];
 
     return SizedBox(
       height: 108,
       child: Scrollbar(
+        controller: _controller,
         thumbVisibility: true,
         child: SingleChildScrollView(
+          controller: _controller,
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
@@ -643,7 +707,6 @@ class _JourneyItem extends StatelessWidget {
     required this.subtitle,
     this.detail,
     this.subtitleColor,
-    this.completed = false,
   });
 
   final IconData icon;
@@ -652,7 +715,6 @@ class _JourneyItem extends StatelessWidget {
   final String subtitle;
   final String? detail;
   final Color? subtitleColor;
-  final bool completed;
 
   @override
   Widget build(BuildContext context) {
@@ -667,59 +729,45 @@ class _JourneyItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(CockpitRadii.lg),
         border: Border.all(color: scheme.outlineVariant),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (completed)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Icon(
-                Icons.check_circle_rounded,
-                size: 16,
-                color: CockpitColors.brand.success,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 16, color: iconColor),
+          ),
+          const Spacer(),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: subtitleColor ?? scheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (detail != null)
+            Text(
+              detail!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontSize: 10,
               ),
             ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.14),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 16, color: iconColor),
-              ),
-              const Spacer(),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: subtitleColor ?? scheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (detail != null)
-                Text(
-                  detail!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontSize: 10,
-                  ),
-                ),
-            ],
-          ),
         ],
       ),
     );
@@ -730,30 +778,18 @@ class _JourneyItem extends StatelessWidget {
 // Mastery by topic
 // ---------------------------------------------------------------------------
 
-class _TopicMastery {
-  const _TopicMastery(this.name, this.value);
-  final String name;
-  final double value;
-}
-
 class _MasteryByTopicCard extends StatelessWidget {
-  const _MasteryByTopicCard();
+  const _MasteryByTopicCard({required this.topics});
 
-  static const _topics = [
-    _TopicMastery('OSI Model', 0.96),
-    _TopicMastery('Switching', 0.91),
-    _TopicMastery('Ethernet', 0.89),
-    _TopicMastery('Routing', 0.68),
-    _TopicMastery('Subnetting', 0.61),
-    _TopicMastery('TCP/IP', 0.72),
-    _TopicMastery('Network Security', 0.74),
-  ];
+  final List<Topic> topics;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final warning = CockpitColors.brand.warning;
+    // Show the first handful; the rest live behind "View All".
+    final shown = topics.take(7).toList();
 
     return _OutlinedCard(
       child: Column(
@@ -766,13 +802,20 @@ class _MasteryByTopicCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: CockpitSpacing.lg),
-          for (final t in _topics) ...[
+          if (shown.isEmpty)
+            Text(
+              'No topics yet.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          for (final t in shown) ...[
             Row(
               children: [
                 Expanded(
                   flex: 2,
                   child: Text(
-                    t.name,
+                    t.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall,
@@ -783,11 +826,11 @@ class _MasteryByTopicCard extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(CockpitRadii.pill),
                     child: LinearProgressIndicator(
-                      value: t.value,
+                      value: t.mastery.clamp(0, 1),
                       minHeight: 6,
                       backgroundColor: scheme.surfaceContainerHighest,
                       valueColor: AlwaysStoppedAnimation(
-                        t.value >= 0.8 ? scheme.primary : warning,
+                        t.mastery >= 0.8 ? scheme.primary : warning,
                       ),
                     ),
                   ),
@@ -796,7 +839,7 @@ class _MasteryByTopicCard extends StatelessWidget {
                 SizedBox(
                   width: 36,
                   child: Text(
-                    '${(t.value * 100).round()}%',
+                    '${(t.mastery * 100).round()}%',
                     textAlign: TextAlign.right,
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w700,
@@ -807,22 +850,25 @@ class _MasteryByTopicCard extends StatelessWidget {
             ),
             const SizedBox(height: CockpitSpacing.sm),
           ],
-          InkWell(
-            onTap: () {},
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'View All Topics (12)',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w600,
+          if (topics.length > shown.length)
+            InkWell(
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Full topic list — coming soon')),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View All Topics (${topics.length})',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                Icon(Icons.chevron_right, size: 16, color: scheme.primary),
-              ],
+                  Icon(Icons.chevron_right, size: 16, color: scheme.primary),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -830,60 +876,61 @@ class _MasteryByTopicCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Confidence vs performance
+// Focus insights (confidence vs performance)
 // ---------------------------------------------------------------------------
 
 class _ConfidencePerformanceCard extends StatelessWidget {
-  const _ConfidencePerformanceCard();
+  const _ConfidencePerformanceCard({required this.strong, required this.weak});
+
+  final List<Topic> strong;
+  final List<Topic> weak;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final success = CockpitColors.brand.success;
     final error = CockpitColors.brand.error;
+    final topWeak = weak.isNotEmpty ? weak.first : null;
+    final topStrong = strong.isNotEmpty ? strong.first : null;
 
     return _OutlinedCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Confidence vs Performance',
+            'Focus Insights',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: CockpitSpacing.lg),
-          _InsightRow(
-            icon: Icons.warning_amber_rounded,
-            iconColor: error,
-            title: 'Overconfident on Routing',
-            body: 'You were highly confident but answered incorrectly 2 times.',
-          ),
-          const SizedBox(height: CockpitSpacing.md),
-          _InsightRow(
-            icon: Icons.check_circle_outline_rounded,
-            iconColor: success,
-            title: 'Underestimated Ethernet',
-            body: 'You were unsure but answered every question correctly.',
-          ),
-          const SizedBox(height: CockpitSpacing.md),
-          InkWell(
-            onTap: () {},
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'View Full Analysis',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Icon(Icons.chevron_right, size: 16, color: scheme.primary),
-              ],
+          if (topWeak != null)
+            _InsightRow(
+              icon: Icons.warning_amber_rounded,
+              iconColor: error,
+              title: 'Needs attention: ${topWeak.title}',
+              body:
+                  'Mastery is at ${(topWeak.mastery * 100).round()}%. '
+                  'Prioritise this topic next.',
             ),
-          ),
+          if (topWeak != null && topStrong != null)
+            const SizedBox(height: CockpitSpacing.md),
+          if (topStrong != null)
+            _InsightRow(
+              icon: Icons.check_circle_outline_rounded,
+              iconColor: success,
+              title: 'Strongest: ${topStrong.title}',
+              body:
+                  'Mastery is at ${(topStrong.mastery * 100).round()}%. '
+                  'Keep it fresh with quick reviews.',
+            ),
+          if (topWeak == null && topStrong == null)
+            Text(
+              'Complete a few quizzes to unlock personalised insights.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
         ],
       ),
     );
@@ -942,17 +989,20 @@ class _InsightRow extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _SkillsRow extends StatelessWidget {
-  const _SkillsRow();
+  const _SkillsRow({required this.strong, required this.weak});
+
+  final List<Topic> strong;
+  final List<Topic> weak;
 
   @override
   Widget build(BuildContext context) {
-    return const IntrinsicHeight(
+    return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _StrongestSkillsCard()),
-          SizedBox(width: CockpitSpacing.sm),
-          Expanded(child: _NeedsPracticeCard()),
+          Expanded(child: _StrongestSkillsCard(topics: strong)),
+          const SizedBox(width: CockpitSpacing.sm),
+          Expanded(child: _NeedsPracticeCard(topics: weak)),
         ],
       ),
     );
@@ -960,14 +1010,9 @@ class _SkillsRow extends StatelessWidget {
 }
 
 class _StrongestSkillsCard extends StatelessWidget {
-  const _StrongestSkillsCard();
+  const _StrongestSkillsCard({required this.topics});
 
-  static const _skills = [
-    'Network Architecture',
-    'OSI Layers',
-    'Ethernet Standards',
-    'Switching Concepts',
-  ];
+  final List<Topic> topics;
 
   @override
   Widget build(BuildContext context) {
@@ -993,7 +1038,14 @@ class _StrongestSkillsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: CockpitSpacing.md),
-          for (final skill in _skills)
+          if (topics.isEmpty)
+            Text(
+              'No topics above 80% yet — keep going!',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          for (final t in topics.take(4))
             Padding(
               padding: const EdgeInsets.only(bottom: CockpitSpacing.xs),
               child: Row(
@@ -1002,7 +1054,7 @@ class _StrongestSkillsCard extends StatelessWidget {
                   const SizedBox(width: CockpitSpacing.xs),
                   Expanded(
                     child: Text(
-                      skill,
+                      t.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,
@@ -1018,9 +1070,9 @@ class _StrongestSkillsCard extends StatelessWidget {
 }
 
 class _NeedsPracticeCard extends StatelessWidget {
-  const _NeedsPracticeCard();
+  const _NeedsPracticeCard({required this.topics});
 
-  static const _topics = ['Routing', 'Subnetting', 'IP Addressing'];
+  final List<Topic> topics;
 
   @override
   Widget build(BuildContext context) {
@@ -1051,14 +1103,21 @@ class _NeedsPracticeCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: CockpitSpacing.md),
-          for (final topic in _topics)
+          if (topics.isEmpty)
+            Text(
+              'Nothing weak right now. Great work!',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          for (final t in topics.take(4))
             Padding(
               padding: const EdgeInsets.only(bottom: CockpitSpacing.sm),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    topic,
+                    t.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -1067,7 +1126,8 @@ class _NeedsPracticeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () =>
+                        context.go('/study/${t.studioId}/topics/${t.id}'),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: Size.zero,
@@ -1096,18 +1156,24 @@ class _NeedsPracticeCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _StudyPlanCard extends StatelessWidget {
-  const _StudyPlanCard();
+  const _StudyPlanCard({required this.weak, required this.mastery});
+
+  final List<Topic> weak;
+  final double mastery;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    const tasks = [
-      ('Routing lesson', '8 min'),
-      ('Flashcards (12 cards)', '12 min'),
-      ('Scenario Mode (2 scenarios)', '10 min'),
-    ];
+    // Build the plan from the weakest topics so the recommendation always
+    // reflects real study time from the model.
+    final planned = weak.take(3).toList();
+    final totalMinutes = planned.fold<int>(
+      0,
+      (sum, t) => sum + t.estimatedStudyTimeMinutes,
+    );
+    final target = ((mastery * 100).round() + 4).clamp(0, 100);
 
     return _OutlinedCard(
       child: Column(
@@ -1132,7 +1198,7 @@ class _StudyPlanCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Recommended for Tomorrow',
+                      'Recommended next session',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: scheme.primary,
                         fontWeight: FontWeight.w600,
@@ -1146,7 +1212,7 @@ class _StudyPlanCard extends StatelessWidget {
                 children: [
                   Icon(Icons.schedule_rounded, size: 28, color: scheme.primary),
                   Text(
-                    '20 min',
+                    '$totalMinutes min',
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: scheme.primary,
                       fontWeight: FontWeight.w800,
@@ -1164,7 +1230,17 @@ class _StudyPlanCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: CockpitSpacing.lg),
-          for (final (task, duration) in tasks)
+          if (planned.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: CockpitSpacing.sm),
+              child: Text(
+                'All topics are in good shape — a light review keeps them sharp.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          for (final t in planned)
             Padding(
               padding: const EdgeInsets.only(bottom: CockpitSpacing.sm),
               child: Row(
@@ -1179,10 +1255,13 @@ class _StudyPlanCard extends StatelessWidget {
                   ),
                   const SizedBox(width: CockpitSpacing.md),
                   Expanded(
-                    child: Text(task, style: theme.textTheme.bodyMedium),
+                    child: Text(
+                      '${t.title} review',
+                      style: theme.textTheme.bodyMedium,
+                    ),
                   ),
                   Text(
-                    duration,
+                    '${t.estimatedStudyTimeMinutes} min',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
@@ -1197,7 +1276,7 @@ class _StudyPlanCard extends StatelessWidget {
               const SizedBox(width: CockpitSpacing.xs),
               Expanded(
                 child: Text(
-                  'Target: Raise mastery to 88%+',
+                  'Target: Raise mastery to $target%+',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: scheme.primary,
                     fontWeight: FontWeight.w600,
@@ -1278,7 +1357,6 @@ class _GradientButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final violet = _shiftHue(scheme.primary, -28);
 
     return Material(
       color: Colors.transparent,
@@ -1288,7 +1366,9 @@ class _GradientButton extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(CockpitRadii.pill),
-            gradient: LinearGradient(colors: [scheme.secondary, violet]),
+            gradient: LinearGradient(
+              colors: [scheme.secondary, StudyPalette.violet],
+            ),
           ),
           child: SizedBox(
             width: double.infinity,
@@ -1321,10 +1401,4 @@ class _GradientButton extends StatelessWidget {
       ),
     );
   }
-}
-
-Color _shiftHue(Color base, double degrees) {
-  final hsl = HSLColor.fromColor(base);
-  final h = (hsl.hue + degrees) % 360;
-  return hsl.withHue(h < 0 ? h + 360 : h).toColor();
 }

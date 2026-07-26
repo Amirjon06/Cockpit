@@ -6,68 +6,89 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../application/providers.dart';
-import '../building/build_preview.dart';
+import '../../domain/entities/studio.dart';
+import '../widgets/studio_palette.dart';
 
-const _weakTopics = ['Routing', 'TCP/IP', 'Subnetting'];
+/// Seconds allowed per question before the countdown ring empties.
+const _perQuestionSeconds = 7;
 
 /// Screen 9 — Lightning Recall.
 ///
 /// Rapid-fire recall session with countdown timer, streak tracking, and
-/// instant feedback. Mock data mirrors the design reference until the
-/// backend recall pipeline is wired.
-class LightningRecallPage extends ConsumerStatefulWidget {
+/// instant feedback. Questions and stats are pulled from the live [Studio]'s
+/// quiz bank via [studioProvider]; grading uses the studio's own answers.
+class LightningRecallPage extends ConsumerWidget {
   const LightningRecallPage({super.key, required this.studioId});
 
   final String studioId;
 
   @override
-  ConsumerState<LightningRecallPage> createState() =>
-      _LightningRecallPageState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(studioProvider(studioId));
+
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: async.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (studio) => _RecallSession(studio: studio),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _LightningRecallPageState extends ConsumerState<LightningRecallPage> {
-  static const _totalQuestions = 50;
+/// Holds the live session state once the studio has loaded.
+class _RecallSession extends StatefulWidget {
+  const _RecallSession({required this.studio});
 
-  static const _questions = [
-    _RecallQuestion(
-      text: 'Which OSI layer handles routing?',
-      answer: 'network layer',
-      hint: 'Think about Layer 3.',
-      explanation: 'The Network Layer (Layer 3) is responsible for routing.',
-    ),
-    _RecallQuestion(
-      text: 'What does TCP stand for?',
-      answer: 'transmission control protocol',
-      hint: 'A reliable transport protocol.',
-      explanation:
-          'TCP stands for Transmission Control Protocol — it provides '
-          'reliable, ordered delivery at the transport layer.',
-    ),
-    _RecallQuestion(
-      text: 'Which device operates at Layer 2 of the OSI model?',
-      answer: 'switch',
-      hint: 'It forwards frames using MAC addresses.',
-      explanation:
-          'A switch operates at the Data Link Layer (Layer 2) and uses '
-          'MAC addresses to forward frames.',
-    ),
-  ];
+  final Studio studio;
 
+  @override
+  State<_RecallSession> createState() => _RecallSessionState();
+}
+
+class _RecallSessionState extends State<_RecallSession> {
   final _answerController = TextEditingController();
   Timer? _countdownTimer;
 
-  int _questionIndex = 17;
-  int _streak = 18;
-  int _countdown = 7;
+  late final List<_RecallQuestion> _questions;
+  late final List<String> _weakTopics;
+
+  int _questionIndex = 0;
+  int _streak = 0;
+  int _bestStreak = 0;
+  int _answeredCount = 0;
+  int _correctCount = 0;
+  int _countdown = _perQuestionSeconds;
   bool _paused = false;
   bool _showHint = false;
-  bool _showFeedback = true;
-  bool _answeredCorrectly = true;
+  bool _showFeedback = false;
+  bool _answered = false;
+  bool _answeredCorrectly = false;
 
   @override
   void initState() {
     super.initState();
-    _startCountdown();
+    // Flatten every Study Object's quiz bank into a single recall queue.
+    _questions = [
+      for (final topic in widget.studio.topics)
+        for (final q in topic.quizQuestions)
+          _RecallQuestion(
+            text: q.question,
+            answer: q.answer,
+            hint: q.relatedConcept ?? 'Topic: ${topic.title}',
+            explanation: q.explanation,
+          ),
+    ];
+    _weakTopics = [for (final t in widget.studio.weakTopics) t.title];
+    if (_questions.isNotEmpty) _startCountdown();
   }
 
   @override
@@ -95,22 +116,32 @@ class _LightningRecallPageState extends ConsumerState<LightningRecallPage> {
   _RecallQuestion get _current =>
       _questions[_questionIndex % _questions.length];
 
-  double get _progress => (_questionIndex + 1) / _totalQuestions;
+  double get _progress =>
+      _questions.isEmpty ? 0 : (_questionIndex + 1) / _questions.length;
 
   void _submitAnswer() {
-    final input = _answerController.text.trim().toLowerCase();
+    if (_answered) return; // Already graded — don't double-count the streak.
+    final input = _answerController.text.trim();
     if (input.isEmpty) return;
     final correct = _current.matches(input);
     setState(() {
+      _answered = true;
       _showFeedback = true;
       _answeredCorrectly = correct;
-      if (correct) _streak++;
+      _answeredCount++;
+      if (correct) {
+        _correctCount++;
+        _streak++;
+        if (_streak > _bestStreak) _bestStreak = _streak;
+      } else {
+        _streak = 0;
+      }
     });
     _countdownTimer?.cancel();
   }
 
   void _nextQuestion() {
-    if (_questionIndex + 1 >= _totalQuestions) {
+    if (_questionIndex + 1 >= _questions.length) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Session complete — great work!')),
       );
@@ -121,8 +152,9 @@ class _LightningRecallPageState extends ConsumerState<LightningRecallPage> {
       _answerController.clear();
       _showHint = false;
       _showFeedback = false;
+      _answered = false;
       _answeredCorrectly = false;
-      _countdown = 7;
+      _countdown = _perQuestionSeconds;
     });
     _startCountdown();
   }
@@ -140,41 +172,44 @@ class _LightningRecallPageState extends ConsumerState<LightningRecallPage> {
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(studioProvider(widget.studioId));
+    final base = '/study/${widget.studio.id}';
 
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: async.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (_) => _LightningRecallBody(
-                studioId: widget.studioId,
-                examTitle: BuildPreview.studioName,
-                questionIndex: _questionIndex,
-                totalQuestions: _totalQuestions,
-                progress: _progress,
-                streak: _streak,
-                countdown: _countdown,
-                paused: _paused,
-                showHint: _showHint,
-                showFeedback: _showFeedback,
-                answeredCorrectly: _answeredCorrectly,
-                question: _current,
-                answerController: _answerController,
-                onSubmit: _submitAnswer,
-                onHint: () => setState(() => _showHint = true),
-                onSkip: _skip,
-                onTogglePause: _togglePause,
-                onNext: _nextQuestion,
-              ),
-            ),
-          ),
-        ),
-      ),
+    if (_questions.isEmpty) {
+      return _EmptyRecall(examTitle: widget.studio.title, base: base);
+    }
+
+    final accuracy = _answeredCount == 0
+        ? 0
+        : (_correctCount / _answeredCount * 100).round();
+
+    return _LightningRecallBody(
+      examTitle: widget.studio.title,
+      questionIndex: _questionIndex,
+      totalQuestions: _questions.length,
+      topicCount: widget.studio.topicCount,
+      weakCount: widget.studio.weakTopics.length,
+      flashcardCount: widget.studio.flashcardCount,
+      weakTopics: _weakTopics,
+      progress: _progress,
+      streak: _streak,
+      bestStreak: _bestStreak,
+      answeredCount: _answeredCount,
+      accuracy: accuracy,
+      countdown: _countdown,
+      paused: _paused,
+      showHint: _showHint,
+      showFeedback: _showFeedback,
+      answered: _answered,
+      answeredCorrectly: _answeredCorrectly,
+      question: _current,
+      answerController: _answerController,
+      onSubmit: _submitAnswer,
+      onHint: () => setState(() => _showHint = true),
+      onSkip: _skip,
+      onTogglePause: _togglePause,
+      onNext: _nextQuestion,
+      onEnd: () => context.go(base),
+      onBack: () => context.go(base),
     );
   }
 }
@@ -192,26 +227,97 @@ class _RecallQuestion {
   final String hint;
   final String explanation;
 
+  /// Lenient match against the studio's canonical answer: exact, or either
+  /// string containing the other (guarded by length to avoid trivial hits).
   bool matches(String input) {
-    final normalized = input.trim().toLowerCase();
-    return normalized.contains(answer) ||
-        (answer.contains('network') && normalized.contains('layer 3')) ||
-        (answer.contains('layer 3') && normalized.contains('network'));
+    final a = answer.trim().toLowerCase();
+    final n = input.trim().toLowerCase();
+    if (n.isEmpty) return false;
+    return n == a ||
+        (a.length > 3 && n.contains(a)) ||
+        (n.length > 3 && a.contains(n));
   }
 }
 
+// ---------------------------------------------------------------------------
+// Empty state
+// ---------------------------------------------------------------------------
+
+class _EmptyRecall extends StatelessWidget {
+  const _EmptyRecall({required this.examTitle, required this.base});
+
+  final String examTitle;
+  final String base;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Column(
+      children: [
+        _Header(examTitle: examTitle, onBack: () => context.go(base)),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(CockpitSpacing.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.bolt_rounded,
+                    size: 48,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: CockpitSpacing.md),
+                  Text(
+                    'No recall questions yet',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: CockpitSpacing.xs),
+                  Text(
+                    'This studio has no quiz questions to recall from. Generate '
+                    'a quiz first, then come back.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Body
+// ---------------------------------------------------------------------------
+
 class _LightningRecallBody extends StatelessWidget {
   const _LightningRecallBody({
-    required this.studioId,
     required this.examTitle,
     required this.questionIndex,
     required this.totalQuestions,
+    required this.topicCount,
+    required this.weakCount,
+    required this.flashcardCount,
+    required this.weakTopics,
     required this.progress,
     required this.streak,
+    required this.bestStreak,
+    required this.answeredCount,
+    required this.accuracy,
     required this.countdown,
     required this.paused,
     required this.showHint,
     required this.showFeedback,
+    required this.answered,
     required this.answeredCorrectly,
     required this.question,
     required this.answerController,
@@ -220,18 +326,27 @@ class _LightningRecallBody extends StatelessWidget {
     required this.onSkip,
     required this.onTogglePause,
     required this.onNext,
+    required this.onEnd,
+    required this.onBack,
   });
 
-  final String studioId;
   final String examTitle;
   final int questionIndex;
   final int totalQuestions;
+  final int topicCount;
+  final int weakCount;
+  final int flashcardCount;
+  final List<String> weakTopics;
   final double progress;
   final int streak;
+  final int bestStreak;
+  final int answeredCount;
+  final int accuracy;
   final int countdown;
   final bool paused;
   final bool showHint;
   final bool showFeedback;
+  final bool answered;
   final bool answeredCorrectly;
   final _RecallQuestion question;
   final TextEditingController answerController;
@@ -240,14 +355,14 @@ class _LightningRecallBody extends StatelessWidget {
   final VoidCallback onSkip;
   final VoidCallback onTogglePause;
   final VoidCallback onNext;
+  final VoidCallback onEnd;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    final base = '/study/$studioId';
-
     return Column(
       children: [
-        _Header(examTitle: examTitle, onBack: () => context.go(base)),
+        _Header(examTitle: examTitle, onBack: onBack),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.only(bottom: CockpitSpacing.xl),
@@ -259,7 +374,13 @@ class _LightningRecallBody extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const _SessionSummaryCard(),
+                    _SessionSummaryCard(
+                      total: totalQuestions,
+                      topics: topicCount,
+                      weak: weakCount,
+                      flashcards: flashcardCount,
+                      weakTopics: weakTopics,
+                    ),
                     const SizedBox(height: CockpitSpacing.lg),
                     _QuestionProgress(
                       index: questionIndex,
@@ -267,12 +388,13 @@ class _LightningRecallBody extends StatelessWidget {
                       progress: progress,
                     ),
                     const SizedBox(height: CockpitSpacing.md),
-                    const _FlowStateCard(),
+                    _FlowStateCard(streak: streak),
                     const SizedBox(height: CockpitSpacing.lg),
                     _QuestionCard(
                       streak: streak,
                       countdown: countdown,
                       paused: paused,
+                      answered: answered,
                       showHint: showHint,
                       question: question,
                       answerController: answerController,
@@ -283,17 +405,23 @@ class _LightningRecallBody extends StatelessWidget {
                       const SizedBox(height: CockpitSpacing.md),
                       _FeedbackCard(
                         correct: answeredCorrectly,
+                        answer: question.answer,
                         explanation: question.explanation,
                       ),
                       const SizedBox(height: CockpitSpacing.md),
-                      const _MetricsRow(),
+                      _MetricsRow(
+                        answered: answeredCount,
+                        total: totalQuestions,
+                        accuracy: accuracy,
+                        bestStreak: bestStreak,
+                      ),
                     ],
                     const SizedBox(height: CockpitSpacing.lg),
                     _ControlRow(
                       paused: paused,
                       onSkip: onSkip,
                       onTogglePause: onTogglePause,
-                      onEnd: () => context.go(base),
+                      onEnd: onEnd,
                     ),
                     const SizedBox(height: CockpitSpacing.md),
                     _GradientButton(
@@ -407,12 +535,48 @@ class _Header extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _SessionSummaryCard extends StatelessWidget {
-  const _SessionSummaryCard();
+  const _SessionSummaryCard({
+    required this.total,
+    required this.topics,
+    required this.weak,
+    required this.flashcards,
+    required this.weakTopics,
+  });
+
+  final int total;
+  final int topics;
+  final int weak;
+  final int flashcards;
+  final List<String> weakTopics;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+
+    final stats = [
+      _SessionStat(
+        icon: Icons.layers_outlined,
+        value: '$total',
+        label: 'Total',
+      ),
+      _SessionStat(
+        icon: Icons.menu_book_outlined,
+        value: '$topics',
+        label: 'Topics',
+      ),
+      _SessionStat(
+        icon: Icons.local_fire_department_rounded,
+        value: '$weak',
+        label: 'Weak',
+        valueColor: true,
+      ),
+      _SessionStat(
+        icon: Icons.style_outlined,
+        value: '$flashcards',
+        label: 'Flashcards',
+      ),
+    ];
 
     return _OutlinedCard(
       child: Column(
@@ -460,30 +624,6 @@ class _SessionSummaryCard extends StatelessWidget {
           const SizedBox(height: CockpitSpacing.lg),
           LayoutBuilder(
             builder: (context, constraints) {
-              final stats = [
-                const _SessionStat(
-                  icon: Icons.layers_outlined,
-                  value: '50',
-                  label: 'Total',
-                ),
-                const _SessionStat(
-                  icon: Icons.schedule_outlined,
-                  value: '4 min',
-                  label: 'Session',
-                ),
-                const _SessionStat(
-                  icon: Icons.local_fire_department_rounded,
-                  value: '12',
-                  label: 'Keep it up!',
-                  valueColor: true,
-                ),
-                const _SessionStat(
-                  icon: Icons.workspace_premium_outlined,
-                  value: '47',
-                  label: 'Personal Best',
-                ),
-              ];
-
               if (constraints.maxWidth < 360) {
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -524,44 +664,46 @@ class _SessionSummaryCard extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: CockpitSpacing.lg),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: CockpitSpacing.md,
-              vertical: CockpitSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              color: scheme.primary.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(CockpitRadii.md),
-            ),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: CockpitSpacing.sm,
-              runSpacing: CockpitSpacing.xs,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.track_changes_rounded,
-                      size: 14,
-                      color: scheme.primary,
-                    ),
-                    const SizedBox(width: CockpitSpacing.xs),
-                    Text(
-                      'Weak topics included:',
-                      style: theme.textTheme.labelSmall?.copyWith(
+          if (weakTopics.isNotEmpty) ...[
+            const SizedBox(height: CockpitSpacing.lg),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: CockpitSpacing.md,
+                vertical: CockpitSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(CockpitRadii.md),
+              ),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: CockpitSpacing.sm,
+                runSpacing: CockpitSpacing.xs,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.track_changes_rounded,
+                        size: 14,
                         color: scheme.primary,
-                        fontWeight: FontWeight.w700,
                       ),
-                    ),
-                  ],
-                ),
-                for (final topic in _weakTopics) TagChip(label: topic),
-              ],
+                      const SizedBox(width: CockpitSpacing.xs),
+                      Text(
+                        'Weak topics included:',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  for (final topic in weakTopics) TagChip(label: topic),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -683,12 +825,21 @@ class _QuestionProgress extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _FlowStateCard extends StatelessWidget {
-  const _FlowStateCard();
+  const _FlowStateCard({required this.streak});
+
+  final int streak;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    // Flow segments light up with the current streak (capped at 7).
+    final lit = streak.clamp(0, 7);
+    final (label, message) = switch (lit) {
+      >= 5 => ('Excellent', "You're in the zone! Keep the streak going."),
+      >= 2 => ('Warming up', 'Nice — string a few more together.'),
+      _ => ('Getting started', 'Answer correctly to build your flow.'),
+    };
 
     return _OutlinedCard(
       padding: const EdgeInsets.symmetric(
@@ -709,11 +860,16 @@ class _FlowStateCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Text(
-                'Excellent',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.w800,
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],
@@ -735,19 +891,19 @@ class _FlowStateCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(
                               CockpitRadii.pill,
                             ),
-                            gradient: i < 5
+                            gradient: i < lit
                                 ? LinearGradient(
                                     colors: [
                                       scheme.primary,
                                       Color.lerp(
                                         scheme.primary,
-                                        const Color(0xFFEC4899),
-                                        i / 4,
+                                        StudyPalette.pink,
+                                        lit <= 1 ? 0 : i / (lit - 1),
                                       )!,
                                     ],
                                   )
                                 : null,
-                            color: i >= 5
+                            color: i >= lit
                                 ? scheme.surfaceContainerHighest
                                 : null,
                           ),
@@ -780,7 +936,7 @@ class _FlowStateCard extends StatelessWidget {
           ),
           const SizedBox(height: CockpitSpacing.sm),
           Text(
-            "You're in the zone! Keep the streak going.",
+            message,
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -800,6 +956,7 @@ class _QuestionCard extends StatelessWidget {
     required this.streak,
     required this.countdown,
     required this.paused,
+    required this.answered,
     required this.showHint,
     required this.question,
     required this.answerController,
@@ -810,6 +967,7 @@ class _QuestionCard extends StatelessWidget {
   final int streak;
   final int countdown;
   final bool paused;
+  final bool answered;
   final bool showHint;
   final _RecallQuestion question;
   final TextEditingController answerController;
@@ -820,7 +978,7 @@ class _QuestionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final countdownProgress = countdown / 7;
+    final countdownProgress = countdown / _perQuestionSeconds;
 
     return Container(
       padding: const EdgeInsets.all(CockpitSpacing.lg),
@@ -876,10 +1034,12 @@ class _QuestionCard extends StatelessWidget {
                   width: 88,
                   height: 88,
                   child: CircularProgressIndicator(
-                    value: paused ? countdownProgress : countdownProgress,
+                    value: countdownProgress.clamp(0, 1),
                     strokeWidth: 6,
                     strokeCap: StrokeCap.round,
-                    valueColor: AlwaysStoppedAnimation(scheme.primary),
+                    valueColor: AlwaysStoppedAnimation(
+                      countdown == 0 ? scheme.error : scheme.primary,
+                    ),
                   ),
                 ),
                 Column(
@@ -935,7 +1095,7 @@ class _QuestionCard extends StatelessWidget {
           const SizedBox(height: CockpitSpacing.lg),
           TextField(
             controller: answerController,
-            enabled: !paused,
+            enabled: !paused && !answered,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => onSubmit(),
             decoration: InputDecoration(
@@ -954,7 +1114,9 @@ class _QuestionCard extends StatelessWidget {
           ),
           const SizedBox(height: CockpitSpacing.xs),
           Text(
-            'Press Enter to submit',
+            answered
+                ? 'Tap Next Question to continue'
+                : 'Press Enter to submit',
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -972,7 +1134,7 @@ class _QuestionCard extends StatelessWidget {
           ],
           const SizedBox(height: CockpitSpacing.md),
           TextButton.icon(
-            onPressed: paused ? null : onHint,
+            onPressed: (paused || answered) ? null : onHint,
             icon: Icon(Icons.lightbulb_outline_rounded, color: scheme.primary),
             label: Text(
               "Can't recall? Show hint",
@@ -993,22 +1155,30 @@ class _QuestionCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _FeedbackCard extends StatelessWidget {
-  const _FeedbackCard({required this.correct, required this.explanation});
+  const _FeedbackCard({
+    required this.correct,
+    required this.answer,
+    required this.explanation,
+  });
 
   final bool correct;
+  final String answer;
   final String explanation;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final success = CockpitColors.brand.success;
+    // Colour and icon follow correctness — a wrong answer must never read green.
+    final accent = correct
+        ? CockpitColors.brand.success
+        : CockpitColors.brand.error;
 
     return Container(
       padding: const EdgeInsets.all(CockpitSpacing.md),
       decoration: BoxDecoration(
-        color: success.withValues(alpha: 0.08),
+        color: accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(CockpitRadii.lg),
-        border: Border.all(color: success.withValues(alpha: 0.25)),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1016,7 +1186,11 @@ class _FeedbackCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.check_circle_rounded, color: success, size: 22),
+              Icon(
+                correct ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                color: accent,
+                size: 22,
+              ),
               const SizedBox(width: CockpitSpacing.sm),
               Expanded(
                 child: Column(
@@ -1025,10 +1199,19 @@ class _FeedbackCard extends StatelessWidget {
                     Text(
                       correct ? 'Correct! 🎉' : 'Not quite',
                       style: theme.textTheme.titleSmall?.copyWith(
-                        color: success,
+                        color: accent,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
+                    if (!correct) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Answer: $answer',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 2),
                     Text(
                       explanation,
@@ -1039,26 +1222,6 @@ class _FeedbackCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: CockpitSpacing.sm),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
-              onPressed: () => ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(explanation))),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: CockpitSpacing.sm,
-                  vertical: CockpitSpacing.xs,
-                ),
-                visualDensity: VisualDensity.compact,
-                side: BorderSide(color: success.withValues(alpha: 0.4)),
-                foregroundColor: success,
-              ),
-              icon: const Icon(Icons.psychology_outlined, size: 14),
-              label: const Text('Why this is correct'),
-            ),
-          ),
         ],
       ),
     );
@@ -1066,28 +1229,38 @@ class _FeedbackCard extends StatelessWidget {
 }
 
 class _MetricsRow extends StatelessWidget {
-  const _MetricsRow();
+  const _MetricsRow({
+    required this.answered,
+    required this.total,
+    required this.accuracy,
+    required this.bestStreak,
+  });
+
+  final int answered;
+  final int total;
+  final int accuracy;
+  final int bestStreak;
 
   @override
   Widget build(BuildContext context) {
-    const metrics = [
+    final metrics = [
       _MetricTile(
-        icon: Icons.schedule_rounded,
-        label: 'Avg. Response Time',
-        value: '2.3s',
-        detail: 'Great pace!',
+        icon: Icons.checklist_rounded,
+        label: 'Answered',
+        value: '$answered/$total',
+        detail: 'This session',
       ),
       _MetricTile(
         icon: Icons.track_changes_rounded,
         label: 'Accuracy',
-        value: '87%',
-        detail: 'Excellent',
+        value: '$accuracy%',
+        detail: accuracy >= 80 ? 'Excellent' : 'Keep going',
       ),
       _MetricTile(
-        icon: Icons.psychology_outlined,
-        label: 'Recall Power',
-        value: 'High',
-        detail: 'Keep it strong!',
+        icon: Icons.local_fire_department_rounded,
+        label: 'Best Streak',
+        value: '$bestStreak',
+        detail: 'In a row',
       ),
     ];
 
@@ -1347,7 +1520,6 @@ class _GradientButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final violet = _shiftHue(scheme.primary, -28);
 
     return Material(
       color: Colors.transparent,
@@ -1357,7 +1529,9 @@ class _GradientButton extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(CockpitRadii.pill),
-            gradient: LinearGradient(colors: [scheme.secondary, violet]),
+            gradient: LinearGradient(
+              colors: [scheme.secondary, StudyPalette.violet],
+            ),
           ),
           child: SizedBox(
             width: double.infinity,
@@ -1383,10 +1557,4 @@ class _GradientButton extends StatelessWidget {
       ),
     );
   }
-}
-
-Color _shiftHue(Color base, double degrees) {
-  final hsl = HSLColor.fromColor(base);
-  final h = (hsl.hue + degrees) % 360;
-  return hsl.withHue(h < 0 ? h + 360 : h).toColor();
 }
