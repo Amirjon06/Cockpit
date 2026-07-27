@@ -10,6 +10,7 @@ import 'presentation/flashcards/flashcards_page.dart';
 import 'presentation/home/study_home_page.dart';
 import 'presentation/knowledge_graph/knowledge_graph_page.dart';
 import 'presentation/lightning_recall/lightning_recall_page.dart';
+import 'presentation/scenario_mode/scenario_mode_page.dart';
 import 'presentation/manage/manage_study_studio_page.dart';
 import 'presentation/mastery_report/mastery_report_page.dart';
 import 'presentation/progress/progress_page.dart';
@@ -132,6 +133,12 @@ class StudyStudioModule extends CockpitModule {
             GoRoute(
               path: 'recall',
               builder: (_, state) => LightningRecallPage(
+                studioId: state.pathParameters['studioId']!,
+              ),
+            ),
+            GoRoute(
+              path: 'scenario',
+              builder: (_, state) => ScenarioModePage(
                 studioId: state.pathParameters['studioId']!,
               ),
             ),

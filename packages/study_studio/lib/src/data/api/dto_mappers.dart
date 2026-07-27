@@ -1,6 +1,7 @@
 import '../../domain/entities/flashcard.dart';
 import '../../domain/entities/me.dart';
 import '../../domain/entities/quiz_question.dart';
+import '../../domain/entities/scenario.dart';
 import '../../domain/entities/source.dart';
 import '../../domain/entities/studio.dart';
 import '../../domain/entities/topic.dart';
@@ -38,6 +39,40 @@ Studio studioFromJson(Map<String, dynamic> j) {
     topics: (j['topics'] as List? ?? [])
         .map((e) => topicFromJson(e as Map<String, dynamic>))
         .toList(),
+    scenarios: (j['scenarios'] as List? ?? [])
+        .map((e) => scenarioFromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+Scenario scenarioFromJson(Map<String, dynamic> j) {
+  return Scenario(
+    id: j['id'] as String,
+    studioId: j['studioId'] as String? ?? '',
+    title: j['title'] as String? ?? '',
+    difficulty: (j['difficulty'] as num?)?.toInt() ?? 3,
+    estimatedMinutes: (j['estimatedMinutes'] as num?)?.toInt() ?? 6,
+    skills: _stringList(j['skills']),
+    aiNote: j['aiNote'] as String? ?? '',
+    problem: j['problem'] as String? ?? '',
+    question: j['question'] as String? ?? '',
+    clues: (j['clues'] as List? ?? [])
+        .map((e) => ScenarioClue(
+              id: (e as Map)['id'] as String? ?? '',
+              label: e['label'] as String? ?? '',
+              detail: e['detail'] as String? ?? '',
+            ))
+        .toList(),
+    options: (j['options'] as List? ?? [])
+        .map((e) => ScenarioOption(
+              id: (e as Map)['id'] as String? ?? '',
+              label: e['label'] as String? ?? '',
+            ))
+        .toList(),
+    correctOptionId: j['correctOptionId'] as String? ?? '',
+    reasoning: j['reasoning'] as String? ?? '',
+    outcomeLabel: j['outcomeLabel'] as String? ?? '',
+    relatedTopics: _stringList(j['relatedTopics']),
   );
 }
 

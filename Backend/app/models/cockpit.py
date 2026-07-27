@@ -101,3 +101,23 @@ class GeneratedTopic(CockpitBase):
     ordinal: Mapped[int] = mapped_column(Integer, default=0)
     payload: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GeneratedScenario(CockpitBase):
+    """An application scenario (Scenario Mode) generated from the studio's chunks.
+
+    Same pattern as GeneratedTopic: the full ScenarioDTO is kept as a JSON
+    `payload` (problem, clues, options, reasoning, …) so the shape can evolve
+    without a migration. Assembled into `StudioDTO.scenarios` in `ordinal` order.
+    """
+
+    __tablename__ = "generated_scenarios"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    studio_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("studios.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    ordinal: Mapped[int] = mapped_column(Integer, default=0)
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

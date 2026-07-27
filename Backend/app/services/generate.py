@@ -18,7 +18,7 @@ import uuid
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.cockpit import GeneratedTopic
+from ..models.cockpit import GeneratedScenario, GeneratedTopic
 from . import llm
 
 # --- Pass 1: outline (one cheap call decides how many lessons) --------------
@@ -335,3 +335,126 @@ async def persist_topics(
         )
     await cockpit.commit()
     return len(topics)
+
+
+# ---------------------------------------------------------------------------
+# Scenario Mode — application scenarios (reasoning, not recall)
+# ---------------------------------------------------------------------------
+_SCENARIO_SYSTEM = (
+    "You are an instructional designer building APPLICATION scenarios that test "
+    "reasoning, not recall — realistic situations the learner must diagnose. "
+    "Ground everything ONLY in the material; never invent facts. Output strict "
+    "JSON only: no markdown, no commentary."
+)
+
+_SCENARIO_HINT = """
+From the material, create realistic application scenarios — situations where the
+learner must REASON through a problem, not recall a fact. Make as many as the
+material genuinely supports (typically 5-10), ordered easy → hard.
+
+Return ONLY JSON: an array. Each scenario:
+{
+  "title": str,                    // short case name
+  "difficulty": 1-5,
+  "estimatedMinutes": int,
+  "skills": [str],                 // 2-4 skills being tested
+  "aiNote": str,                   // one line, e.g. "Multiple concepts may be required."
+  "problem": str,                  // the situation, 2-4 short sentences
+  "question": str,                 // what the learner must determine
+  "clues": [{"label": str, "detail": str}],  // 3-5 things to investigate + what each reveals
+  "options": [str, str, str, str], // 4 candidate first actions (only one is best)
+  "correctIndex": 0,               // index (0-3) of the best first action
+  "reasoning": str,                // WHY that action is right; rule out the others
+  "outcomeLabel": str,             // short result, e.g. "Likely issue: Layer 3"
+  "relatedTopics": [str]           // 2-3 related topic titles from the material
+}
+Base everything ONLY on the provided material. No prose outside the JSON.
+""".strip()
+
+_SCENARIO_MAX_TOKENS = 8_000
+
+
+def _shape_scenario(raw: dict, studio_id: str) -> dict:
+    """Normalize an LLM scenario into a full ScenarioDTO dict (camelCase)."""
+    sid = f"scn_{uuid.uuid4().hex[:10]}"
+    options = [
+        {"id": f"opt_{i}", "label": str(o)}
+        for i, o in enumerate(raw.get("options") or [])
+        if str(o).strip()
+    ]
+    ci = raw.get("correctIndex", 0)
+    ci = ci if isinstance(ci, int) and 0 <= ci < len(options) else 0
+    correct_id = options[ci]["id"] if options else "opt_0"
+    clues = [
+        {
+            "id": f"clue_{uuid.uuid4().hex[:6]}",
+            "label": c.get("label", ""),
+            "detail": c.get("detail", ""),
+        }
+        for c in (raw.get("clues") or [])
+        if isinstance(c, dict) and c.get("label")
+    ]
+    return {
+        "id": sid,
+        "studioId": studio_id,
+        "title": raw.get("title", "Scenario"),
+        "difficulty": int(raw.get("difficulty", 3) or 3),
+        "estimatedMinutes": int(raw.get("estimatedMinutes", 6) or 6),
+        "skills": [str(s) for s in (raw.get("skills") or [])],
+        "aiNote": raw.get("aiNote", ""),
+        "problem": raw.get("problem", ""),
+        "question": raw.get("question", ""),
+        "clues": clues,
+        "options": options,
+        "correctOptionId": correct_id,
+        "reasoning": raw.get("reasoning", ""),
+        "outcomeLabel": raw.get("outcomeLabel", ""),
+        "relatedTopics": [str(t) for t in (raw.get("relatedTopics") or [])],
+    }
+
+
+async def generate_scenarios(
+    *, chunks: list[str], studio_id: str, api_key: str, model: str
+) -> list[dict]:
+    """One fast LLM call → a set of application scenarios (best-effort)."""
+    if not chunks or not api_key:
+        return []
+    try:
+        raw = await llm.generate(
+            api_key=api_key,
+            model=model,
+            system=_SCENARIO_SYSTEM,
+            question=_SCENARIO_HINT,
+            context=_material(chunks),
+            max_tokens=_SCENARIO_MAX_TOKENS,
+        )
+        parsed = _parse_json(raw)
+        items = parsed if isinstance(parsed, list) else (parsed or {}).get("scenarios", [])
+        return [
+            _shape_scenario(s, studio_id)
+            for s in items
+            if isinstance(s, dict) and s.get("problem")
+        ]
+    except Exception:  # noqa: BLE001 — scenarios are optional; never fail ingest
+        return []
+
+
+async def persist_scenarios(
+    cockpit: AsyncSession,
+    *,
+    studio_id: uuid.UUID,
+    user_id: uuid.UUID,
+    scenarios: list[dict],
+) -> int:
+    """Replace the studio's generated scenarios."""
+    await cockpit.execute(
+        delete(GeneratedScenario).where(GeneratedScenario.studio_id == studio_id)
+    )
+    for i, payload in enumerate(scenarios):
+        cockpit.add(
+            GeneratedScenario(
+                studio_id=studio_id, user_id=user_id, ordinal=i, payload=payload
+            )
+        )
+    await cockpit.commit()
+    return len(scenarios)

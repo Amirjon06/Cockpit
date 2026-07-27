@@ -1,3 +1,4 @@
+import 'scenario.dart';
 import 'source.dart';
 import 'topic.dart';
 
@@ -12,6 +13,7 @@ class Studio {
     required this.updatedAt,
     this.sourceFiles = const [],
     this.topics = const [],
+    this.scenarios = const [],
     this.lastStudied,
   });
 
@@ -23,8 +25,11 @@ class Studio {
   final DateTime? lastStudied;
   final List<SourceFile> sourceFiles;
   final List<Topic> topics;
+  final List<Scenario> scenarios;
 
   int get topicCount => topics.length;
+
+  int get scenarioCount => scenarios.length;
 
   int get flashcardCount =>
       topics.fold(0, (sum, t) => sum + t.flashcards.length);
@@ -50,6 +55,7 @@ class Studio {
       lastStudied: lastStudied ?? this.lastStudied,
       sourceFiles: sourceFiles,
       topics: topics ?? this.topics,
+      scenarios: scenarios,
     );
   }
 }

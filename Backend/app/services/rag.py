@@ -124,6 +124,20 @@ async def run_ingest(
                 user_id=document.user_id,
                 topics=topics,
             )
+
+            # Scenario Mode — application scenarios (best-effort, own try below).
+            scenarios = await generate.generate_scenarios(
+                chunks=pieces,
+                studio_id=str(document.studio_id),
+                api_key=api_key,
+                model=model,
+            )
+            await generate.persist_scenarios(
+                cockpit,
+                studio_id=document.studio_id,
+                user_id=document.user_id,
+                scenarios=scenarios,
+            )
         except Exception:  # noqa: BLE001 — generation is best-effort
             pass
 

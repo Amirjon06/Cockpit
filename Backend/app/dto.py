@@ -113,6 +113,35 @@ class TopicDTO(_Base):
     mastery: float = 0.0
 
 
+class ScenarioClueDTO(_Base):
+    id: str
+    label: str
+    detail: str
+
+
+class ScenarioOptionDTO(_Base):
+    id: str
+    label: str
+
+
+class ScenarioDTO(_Base):
+    id: str
+    studio_id: str
+    title: str
+    difficulty: int = 3
+    estimated_minutes: int = 6
+    skills: list[str] = []
+    ai_note: str = ""
+    problem: str
+    question: str
+    clues: list[ScenarioClueDTO] = []
+    options: list[ScenarioOptionDTO] = []
+    correct_option_id: str
+    reasoning: str = ""
+    outcome_label: str = ""
+    related_topics: list[str] = []
+
+
 class StudioDTO(_Base):
     id: str
     title: str
@@ -122,6 +151,7 @@ class StudioDTO(_Base):
     last_studied: datetime | None = None
     source_files: list[SourceFileDTO] = []
     topics: list[TopicDTO] = []
+    scenarios: list[ScenarioDTO] = []
 
 
 class MeDTO(_Base):

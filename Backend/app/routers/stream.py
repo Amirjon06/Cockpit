@@ -20,8 +20,8 @@ from sse_starlette.sse import EventSourceResponse
 from ..config import get_settings
 from ..db import CockpitSession, SharedSession, VectorSession
 from ..deps import get_current_user_id
-from ..dto import AskCitationDTO, MeDTO, StudioDTO, TopicDTO
-from ..models.cockpit import GeneratedTopic, IngestJob, Studio
+from ..dto import AskCitationDTO, MeDTO, ScenarioDTO, StudioDTO, TopicDTO
+from ..models.cockpit import GeneratedScenario, GeneratedTopic, IngestJob, Studio
 from ..seed import seed_studios
 from ..services import llm, rag
 from ..sse import done, error, event
@@ -43,8 +43,27 @@ async def _load_topics(cockpit: AsyncSession, studio_id: uuid.UUID) -> list[Topi
         return []
 
 
-def _db_studio_to_dto(row: Studio, topics: list[TopicDTO] | None = None) -> StudioDTO:
-    """Map a persisted studio to the wire DTO (topics filled after generation)."""
+async def _load_scenarios(
+    cockpit: AsyncSession, studio_id: uuid.UUID
+) -> list[ScenarioDTO]:
+    """Load the studio's generated Scenario-Mode scenarios."""
+    try:
+        rows = await cockpit.execute(
+            select(GeneratedScenario)
+            .where(GeneratedScenario.studio_id == studio_id)
+            .order_by(GeneratedScenario.ordinal)
+        )
+        return [ScenarioDTO.model_validate(r.payload) for r in rows.scalars()]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _db_studio_to_dto(
+    row: Studio,
+    topics: list[TopicDTO] | None = None,
+    scenarios: list[ScenarioDTO] | None = None,
+) -> StudioDTO:
+    """Map a persisted studio to the wire DTO (topics/scenarios filled after gen)."""
     return StudioDTO(
         id=str(row.id),
         title=row.title,
@@ -52,6 +71,7 @@ def _db_studio_to_dto(row: Studio, topics: list[TopicDTO] | None = None) -> Stud
         created_at=row.created_at,
         updated_at=row.updated_at,
         topics=topics or [],
+        scenarios=scenarios or [],
     )
 
 
@@ -63,7 +83,13 @@ async def _db_studios_for(cockpit: AsyncSession, user_id: uuid.UUID) -> list[Stu
         )
         out = []
         for r in rows.scalars():
-            out.append(_db_studio_to_dto(r, await _load_topics(cockpit, r.id)))
+            out.append(
+                _db_studio_to_dto(
+                    r,
+                    await _load_topics(cockpit, r.id),
+                    await _load_scenarios(cockpit, r.id),
+                )
+            )
         return out
     except Exception:  # noqa: BLE001 — DB down in local/seed mode
         return []
@@ -150,7 +176,11 @@ async def get_studio(
                 row = await cockpit.get(Studio, sid)
                 owned = row is not None and row.user_id == user_id
                 dto = (
-                    _db_studio_to_dto(row, await _load_topics(cockpit, sid))
+                    _db_studio_to_dto(
+                        row,
+                        await _load_topics(cockpit, sid),
+                        await _load_scenarios(cockpit, sid),
+                    )
                     if owned
                     else None
                 )

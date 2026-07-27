@@ -661,8 +661,8 @@ class _LearningModeGrid extends StatelessWidget {
         color: const Color(0xFF3B82F6),
         title: 'Scenario Mode',
         desc: 'Real-world scenarios to apply your knowledge.',
-        count: '${studio.topicCount} scenarios',
-        onTap: () => soon('Scenario Mode'),
+        count: '${studio.scenarioCount} scenarios',
+        onTap: () => context.go('$base/scenario'),
       ),
       _Mode(
         icon: Icons.view_in_ar_rounded,
