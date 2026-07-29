@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../widgets/responsive.dart';
+
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -33,65 +35,97 @@ class SettingsPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(CockpitSpacing.lg),
         children: [
-          const SectionHeader(title: 'Modules'),
-          CockpitCard(
-            padding: EdgeInsets.zero,
-            child: SwitchListTile(
-              title: const Text('Study Studio'),
-              subtitle: const Text('study_studio_enabled — detach the whole module'),
-              value: flags.studyStudioEnabled,
-              onChanged: (v) =>
-                  ref.read(featureFlagsProvider.notifier).setStudyStudioEnabled(v),
-            ),
-          ),
-          const SizedBox(height: CockpitSpacing.xl),
-          const SectionHeader(title: 'Global controls · Theme'),
-          CockpitCard(
+          AppContentColumn(
+            maxWidth: 720,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Appearance', style: theme.textTheme.titleSmall),
-                const SizedBox(height: CockpitSpacing.sm),
-                SegmentedButton<ThemeMode>(
-                  segments: const [
-                    ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode)),
-                    ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto)),
-                    ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode)),
-                  ],
-                  selected: {themeState.mode},
-                  onSelectionChanged: (s) =>
-                      ref.read(themeControllerProvider.notifier).setMode(s.first),
+                const SectionHeader(title: 'Modules'),
+                CockpitCard(
+                  padding: EdgeInsets.zero,
+                  child: SwitchListTile(
+                    title: const Text('Study Studio'),
+                    subtitle: const Text(
+                      'study_studio_enabled — detach the whole module',
+                    ),
+                    value: flags.studyStudioEnabled,
+                    onChanged: (v) => ref
+                        .read(featureFlagsProvider.notifier)
+                        .setStudyStudioEnabled(v),
+                  ),
                 ),
-                const SizedBox(height: CockpitSpacing.lg),
-                Text('Primary color', style: theme.textTheme.titleSmall),
-                const SizedBox(height: CockpitSpacing.sm),
-                Wrap(
-                  spacing: CockpitSpacing.md,
-                  children: [
-                    for (final c in _swatches)
-                      InkWell(
-                        borderRadius: BorderRadius.circular(CockpitRadii.pill),
-                        onTap: () =>
-                            ref.read(themeControllerProvider.notifier).setPrimary(c),
-                        child: CircleAvatar(
-                          backgroundColor: c,
-                          radius: 18,
-                          child: themeState.colors.primary == c
-                              ? const Icon(Icons.check, color: Colors.white, size: 18)
-                              : null,
-                        ),
+                const SizedBox(height: CockpitSpacing.xl),
+                const SectionHeader(title: 'Global controls · Theme'),
+                CockpitCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Appearance', style: theme.textTheme.titleSmall),
+                      const SizedBox(height: CockpitSpacing.sm),
+                      SegmentedButton<ThemeMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: ThemeMode.light,
+                            label: Text('Light'),
+                            icon: Icon(Icons.light_mode),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.system,
+                            label: Text('System'),
+                            icon: Icon(Icons.brightness_auto),
+                          ),
+                          ButtonSegment(
+                            value: ThemeMode.dark,
+                            label: Text('Dark'),
+                            icon: Icon(Icons.dark_mode),
+                          ),
+                        ],
+                        selected: {themeState.mode},
+                        onSelectionChanged: (s) => ref
+                            .read(themeControllerProvider.notifier)
+                            .setMode(s.first),
                       ),
-                  ],
+                      const SizedBox(height: CockpitSpacing.lg),
+                      Text('Primary color', style: theme.textTheme.titleSmall),
+                      const SizedBox(height: CockpitSpacing.sm),
+                      Wrap(
+                        spacing: CockpitSpacing.md,
+                        children: [
+                          for (final c in _swatches)
+                            InkWell(
+                              borderRadius: BorderRadius.circular(
+                                CockpitRadii.pill,
+                              ),
+                              onTap: () => ref
+                                  .read(themeControllerProvider.notifier)
+                                  .setPrimary(c),
+                              child: CircleAvatar(
+                                backgroundColor: c,
+                                radius: 18,
+                                child: themeState.colors.primary == c
+                                    ? const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 18,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: CockpitSpacing.xl),
+                Text(
+                  'Tip: these controls live in cockpit_ui (tokens) and cockpit_core (flags). '
+                  'Later they can be driven by the backend GET /config.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: CockpitSpacing.xl),
-          Text(
-            'Tip: these controls live in cockpit_ui (tokens) and cockpit_core (flags). '
-            'Later they can be driven by the backend GET /config.',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ],
       ),

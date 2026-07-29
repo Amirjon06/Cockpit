@@ -15,128 +15,250 @@ import '../widgets/studio_scaffold.dart';
 class WelcomeBackPage extends StatelessWidget {
   const WelcomeBackPage({super.key});
 
-  void _soon(BuildContext context, String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
-  }
-
   @override
   Widget build(BuildContext context) {
     final data = welcomeMockData;
-    final base = '/study/${data.studioId}';
-    final teach = '$base/teach/${data.topicId}';
     return StudioShell(
       selectedIndex: 1,
       child: SafeArea(
         bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: const Alignment(0, -0.35),
-                  colors: [
-                    Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.055),
-                    Theme.of(context).colorScheme.surface,
-                  ],
+        child: isDesktop(context)
+            ? _WelcomeDesktop(data: data)
+            : Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: _WelcomeBody(data: data),
                 ),
               ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  CockpitSpacing.md,
-                  CockpitSpacing.sm,
-                  CockpitSpacing.md,
-                  CockpitSpacing.sm,
-                ),
-                child: Column(
-                  children: [
-                    _WelcomeHeader(
-                      data: data,
-                      onNotifications: () => _soon(context, 'Notifications'),
-                      onCompanion: () => _soon(context, 'AI Companion'),
-                    ),
-                    const SizedBox(height: CockpitSpacing.sm),
-                    _BriefingCard(
-                      data: data,
-                      onContinue: () => context.go(teach),
-                    ),
-                    const SizedBox(height: CockpitSpacing.sm),
-                    _TodaysPlanCard(data: data),
-                    const SizedBox(height: CockpitSpacing.sm),
-                    _StudioGlanceCard(
-                      onSeeAll: () => context.go(base),
-                      onTeach: () => context.go(teach),
-                      onQuiz: () =>
-                          context.go('$base/quiz?topicId=${data.topicId}'),
-                      onLightning: () => _soon(context, 'Lightning Recall'),
-                      onFlashcards: () => context.go(
-                        '$base/flashcards?topicId=${data.topicId}',
-                      ),
-                      onScenario: () => _soon(context, 'Scenario Mode'),
-                      onKnowledge: () => _soon(context, 'Knowledge Graph'),
-                      onAskAi: () => _soon(context, 'Ask AI'),
-                      onStudyPlan: () => _soon(context, 'AI Study Plan'),
-                      onAnalytics: () => context.go('$base/analytics'),
-                    ),
-                    const SizedBox(height: CockpitSpacing.sm),
-                    const SizedBox(
-                      height: 105,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(flex: 11, child: _LearningMilestonesCard()),
-                          SizedBox(width: CockpitSpacing.sm),
-                          Expanded(flex: 9, child: _AiNoticedCard()),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: CockpitSpacing.sm),
-                    const SizedBox(
-                      height: 110,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(flex: 11, child: _KnowledgeEvolutionCard()),
-                          SizedBox(width: CockpitSpacing.sm),
-                          Expanded(flex: 9, child: _WhatsNewCard()),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: CockpitSpacing.sm),
-                    SizedBox(
-                      height: 37,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _WelcomeActionButton(
-                              title: 'Continue Learning',
-                              subtitle: "Resume today's AI-planned session",
-                              icon: Icons.play_arrow_rounded,
-                              filled: true,
-                              onTap: () => context.go(teach),
-                            ),
-                          ),
-                          const SizedBox(width: CockpitSpacing.sm),
-                          Expanded(
-                            child: _WelcomeActionButton(
-                              title: 'Explore Study Studio',
-                              subtitle: 'Browse tools and topics freely',
-                              icon: Icons.grid_view_rounded,
-                              onTap: () => context.go(base),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+      ),
+    );
+  }
+}
+
+void _soon(BuildContext context, String label) {
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
+}
+
+class _WelcomeBody extends StatelessWidget {
+  const _WelcomeBody({required this.data});
+
+  final WelcomeMockData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = '/study/${data.studioId}';
+    final teach = '$base/teach/${data.topicId}';
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: const Alignment(0, -0.35),
+          colors: [
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.055),
+            Theme.of(context).colorScheme.surface,
+          ],
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          CockpitSpacing.md,
+          CockpitSpacing.sm,
+          CockpitSpacing.md,
+          CockpitSpacing.sm,
+        ),
+        child: Column(
+          children: [
+            _WelcomeHeader(
+              data: data,
+              onNotifications: () => _soon(context, 'Notifications'),
+              onCompanion: () => _soon(context, 'AI Companion'),
+            ),
+            const SizedBox(height: CockpitSpacing.sm),
+            _BriefingCard(data: data, onContinue: () => context.go(teach)),
+            const SizedBox(height: CockpitSpacing.sm),
+            _TodaysPlanCard(data: data),
+            const SizedBox(height: CockpitSpacing.sm),
+            _StudioGlanceCard(
+              onSeeAll: () => context.go(base),
+              onTeach: () => context.go(teach),
+              onQuiz: () => context.go('$base/quiz?topicId=${data.topicId}'),
+              onLightning: () => _soon(context, 'Lightning Recall'),
+              onFlashcards: () =>
+                  context.go('$base/flashcards?topicId=${data.topicId}'),
+              onScenario: () => _soon(context, 'Scenario Mode'),
+              onKnowledge: () => _soon(context, 'Knowledge Graph'),
+              onAskAi: () => _soon(context, 'Ask AI'),
+              onStudyPlan: () => _soon(context, 'AI Study Plan'),
+              onAnalytics: () => context.go('$base/analytics'),
+            ),
+            const SizedBox(height: CockpitSpacing.sm),
+            const SizedBox(
+              height: 105,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: 11, child: _LearningMilestonesCard()),
+                  SizedBox(width: CockpitSpacing.sm),
+                  Expanded(flex: 9, child: _AiNoticedCard()),
+                ],
               ),
             ),
+            const SizedBox(height: CockpitSpacing.sm),
+            const SizedBox(
+              height: 110,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: 11, child: _KnowledgeEvolutionCard()),
+                  SizedBox(width: CockpitSpacing.sm),
+                  Expanded(flex: 9, child: _WhatsNewCard()),
+                ],
+              ),
+            ),
+            const SizedBox(height: CockpitSpacing.sm),
+            SizedBox(
+              height: 37,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _WelcomeActionButton(
+                      title: 'Continue Learning',
+                      subtitle: "Resume today's AI-planned session",
+                      icon: Icons.play_arrow_rounded,
+                      filled: true,
+                      onTap: () => context.go(teach),
+                    ),
+                  ),
+                  const SizedBox(width: CockpitSpacing.sm),
+                  Expanded(
+                    child: _WelcomeActionButton(
+                      title: 'Explore Study Studio',
+                      subtitle: 'Browse tools and topics freely',
+                      icon: Icons.grid_view_rounded,
+                      onTap: () => context.go(base),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Desktop / web layout — header + briefing full-width, then a two-column
+// region: left (wider) has Today's Plan, Studio at a Glance and the action
+// buttons; right stacks the four smaller insight cards.
+// ---------------------------------------------------------------------------
+
+class _WelcomeDesktop extends StatelessWidget {
+  const _WelcomeDesktop({required this.data});
+
+  final WelcomeMockData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = '/study/${data.studioId}';
+    final teach = '$base/teach/${data.topicId}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(40, 28, 40, 28),
+      child: ContentColumn(
+        maxWidth: 1160,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _WelcomeHeader(
+                data: data,
+                desktop: true,
+                onNotifications: () => _soon(context, 'Notifications'),
+                onCompanion: () => _soon(context, 'AI Companion'),
+              ),
+              const SizedBox(height: CockpitSpacing.lg),
+              _BriefingCard(
+                data: data,
+                desktop: true,
+                onContinue: () => context.go(teach),
+              ),
+              const SizedBox(height: CockpitSpacing.lg),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _TodaysPlanCard(data: data, desktop: true),
+                        const SizedBox(height: CockpitSpacing.lg),
+                        _StudioGlanceCard(
+                          desktop: true,
+                          onSeeAll: () => context.go(base),
+                          onTeach: () => context.go(teach),
+                          onQuiz: () =>
+                              context.go('$base/quiz?topicId=${data.topicId}'),
+                          onLightning: () => _soon(context, 'Lightning Recall'),
+                          onFlashcards: () => context.go(
+                            '$base/flashcards?topicId=${data.topicId}',
+                          ),
+                          onScenario: () => _soon(context, 'Scenario Mode'),
+                          onKnowledge: () => _soon(context, 'Knowledge Graph'),
+                          onAskAi: () => _soon(context, 'Ask AI'),
+                          onStudyPlan: () => _soon(context, 'AI Study Plan'),
+                          onAnalytics: () => context.go('$base/analytics'),
+                        ),
+                        const SizedBox(height: CockpitSpacing.lg),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _WelcomeActionButton(
+                                title: 'Continue Learning',
+                                subtitle: "Resume today's AI-planned session",
+                                icon: Icons.play_arrow_rounded,
+                                filled: true,
+                                desktop: true,
+                                onTap: () => context.go(teach),
+                              ),
+                            ),
+                            const SizedBox(width: CockpitSpacing.md),
+                            Expanded(
+                              child: _WelcomeActionButton(
+                                title: 'Explore Study Studio',
+                                subtitle: 'Browse tools and topics freely',
+                                icon: Icons.grid_view_rounded,
+                                desktop: true,
+                                onTap: () => context.go(base),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: CockpitSpacing.xl),
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _LearningMilestonesCard(desktop: true),
+                        const SizedBox(height: CockpitSpacing.lg),
+                        const _AiNoticedCard(desktop: true),
+                        const SizedBox(height: CockpitSpacing.lg),
+                        const _KnowledgeEvolutionCard(desktop: true),
+                        const SizedBox(height: CockpitSpacing.lg),
+                        const _WhatsNewCard(desktop: true),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -149,23 +271,26 @@ class _WelcomeHeader extends StatelessWidget {
     required this.data,
     required this.onNotifications,
     required this.onCompanion,
+    this.desktop = false,
   });
 
   final WelcomeMockData data;
   final VoidCallback onNotifications;
   final VoidCallback onCompanion;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final avatarSize = desktop ? 56.0 : 43.0;
     return SizedBox(
-      height: 66,
+      height: desktop ? null : 66,
       child: Row(
         children: [
           Container(
-            width: 43,
-            height: 43,
+            width: avatarSize,
+            height: avatarSize,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
@@ -187,13 +312,14 @@ class _WelcomeHeader extends StatelessWidget {
             ),
             child: Icon(
               Icons.person_rounded,
-              size: 26,
+              size: desktop ? 30 : 26,
               color: scheme.onSurface,
             ),
           ),
           const SizedBox(width: CockpitSpacing.md),
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -201,19 +327,19 @@ class _WelcomeHeader extends StatelessWidget {
                   'Good Morning, ${data.userName} 👋',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: scheme.primary,
-                    fontSize: 8,
+                    fontSize: desktop ? null : 8,
                     fontWeight: FontWeight.w700,
-                    height: 1,
+                    height: desktop ? null : 1,
                   ),
                 ),
                 const SizedBox(height: CockpitSpacing.xxs),
                 Text(
                   'Welcome Back',
                   style: theme.textTheme.headlineMedium?.copyWith(
-                    fontSize: 20,
+                    fontSize: desktop ? null : 20,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
-                    height: 1,
+                    height: desktop ? null : 1,
                   ),
                 ),
                 const SizedBox(height: CockpitSpacing.xxs),
@@ -221,8 +347,8 @@ class _WelcomeHeader extends StatelessWidget {
                   'Your AI Study Companion is ready.',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    fontSize: 7,
-                    height: 1,
+                    fontSize: desktop ? null : 7,
+                    height: desktop ? null : 1,
                   ),
                 ),
               ],
@@ -232,9 +358,14 @@ class _WelcomeHeader extends StatelessWidget {
             icon: Icons.notifications_none_rounded,
             showDot: true,
             onTap: onNotifications,
+            desktop: desktop,
           ),
           const SizedBox(width: CockpitSpacing.sm),
-          _HeaderAction(icon: Icons.auto_awesome, onTap: onCompanion),
+          _HeaderAction(
+            icon: Icons.auto_awesome,
+            onTap: onCompanion,
+            desktop: desktop,
+          ),
         ],
       ),
     );
@@ -242,203 +373,348 @@ class _WelcomeHeader extends StatelessWidget {
 }
 
 class _BriefingCard extends StatelessWidget {
-  const _BriefingCard({required this.data, required this.onContinue});
+  const _BriefingCard({
+    required this.data,
+    required this.onContinue,
+    this.desktop = false,
+  });
 
   final WelcomeMockData data;
   final VoidCallback onContinue;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return _WelcomeSurface(
-      height: 130,
-      padding: EdgeInsets.zero,
-      child: Row(
-        children: [
-          SizedBox(
-            width: 127,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.horizontal(
-                        left: Radius.circular(CockpitRadii.lg),
-                      ),
-                      gradient: RadialGradient(
-                        colors: [
-                          scheme.primary.withValues(alpha: 0.25),
-                          scheme.primary.withValues(alpha: 0.035),
-                        ],
-                      ),
+    final imageBoxWidth = desktop ? 170.0 : 127.0;
+    final imageSize = desktop ? 150.0 : 116.0;
+    // `stretch` needs a bounded height: the phone card has a fixed one, the
+    // desktop card grows with its content, so measure it first.
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: imageBoxWidth,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(CockpitRadii.lg),
+                    ),
+                    gradient: RadialGradient(
+                      colors: [
+                        scheme.primary.withValues(alpha: 0.25),
+                        scheme.primary.withValues(alpha: 0.035),
+                      ],
                     ),
                   ),
                 ),
-                Positioned(
-                  width: 116,
-                  height: 116,
-                  child: Image.asset(
-                    'assets/images/ai_study_companion.png',
-                    package: 'study_studio',
-                    fit: BoxFit.contain,
+              ),
+              Positioned(
+                width: imageSize,
+                height: imageSize,
+                child: Image.asset(
+                  'assets/images/ai_study_companion.png',
+                  package: 'study_studio',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: desktop
+                ? const EdgeInsets.symmetric(
+                    horizontal: CockpitSpacing.lg,
+                    vertical: CockpitSpacing.md,
+                  )
+                : const EdgeInsets.fromLTRB(
+                    CockpitSpacing.md,
+                    CockpitSpacing.sm,
+                    CockpitSpacing.sm,
+                    CockpitSpacing.sm,
+                  ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: desktop
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      size: desktop ? 16 : 9,
+                      color: scheme.primary,
+                    ),
+                    const SizedBox(width: CockpitSpacing.xs),
+                    Text(
+                      "Today's Briefing",
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.primary,
+                        fontSize: desktop ? null : 6.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CockpitSpacing.sm),
+                Text(
+                  "Today's session",
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontSize: desktop ? null : 8,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: '${data.sessionMinutes}'),
+                      TextSpan(
+                        text: ' min',
+                        style: TextStyle(fontSize: desktop ? 14 : 8),
+                      ),
+                    ],
+                  ),
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    color: scheme.primary,
+                    fontSize: desktop ? 32 : 24,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
+                  ),
+                ),
+                Divider(
+                  height: desktop ? CockpitSpacing.lg : CockpitSpacing.md,
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _BriefMetric(
+                        icon: Icons.donut_large,
+                        color: scheme.primary,
+                        label: 'Mastery',
+                        value: '${data.mastery}%',
+                        desktop: desktop,
+                      ),
+                    ),
+                    Expanded(
+                      child: _BriefMetric(
+                        icon: Icons.shield_outlined,
+                        color: CockpitColors.brand.success,
+                        label: 'Exam Readiness',
+                        value: 'Ready',
+                        desktop: desktop,
+                      ),
+                    ),
+                    Expanded(
+                      child: _BriefMetric(
+                        icon: Icons.psychology,
+                        color: scheme.secondary,
+                        label: 'Retention',
+                        value: '${data.retention}%',
+                        desktop: desktop,
+                      ),
+                    ),
+                    Expanded(
+                      child: _BriefMetric(
+                        icon: Icons.local_fire_department,
+                        color: CockpitColors.brand.warning,
+                        label: 'Streak',
+                        value: '${data.streak} days',
+                        desktop: desktop,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(
+                  height: desktop ? CockpitSpacing.lg : CockpitSpacing.sm,
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  height: desktop ? 44 : 26,
+                  child: Material(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(CockpitRadii.sm),
+                    child: InkWell(
+                      onTap: onContinue,
+                      borderRadius: BorderRadius.circular(CockpitRadii.sm),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CockpitSpacing.sm,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.play_arrow_rounded,
+                              size: desktop ? 18 : 13,
+                              color: scheme.onPrimary,
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Continue Learning',
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: scheme.onPrimary,
+                                  fontSize: desktop ? null : 8,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward,
+                              size: desktop ? 15 : 11,
+                              color: scheme.onPrimary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                CockpitSpacing.md,
-                CockpitSpacing.sm,
-                CockpitSpacing.sm,
-                CockpitSpacing.sm,
+        ),
+      ],
+    );
+    return _WelcomeSurface(
+      height: desktop ? null : 130,
+      padding: EdgeInsets.zero,
+      child: desktop ? IntrinsicHeight(child: row) : row,
+    );
+  }
+}
+
+class _TodaysPlanCard extends StatelessWidget {
+  const _TodaysPlanCard({required this.data, this.desktop = false});
+
+  final WelcomeMockData data;
+  final bool desktop;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    if (desktop) {
+      return _WelcomeSurface(
+        padding: const EdgeInsets.all(CockpitSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(CockpitRadii.sm),
+                  ),
+                  child: Icon(
+                    Icons.calendar_month_rounded,
+                    size: 24,
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(width: CockpitSpacing.md),
+                Text(
+                  "Here's today's plan",
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: CockpitSpacing.lg),
+            _PlanStep(
+              color: scheme.primary,
+              action: 'Begin with',
+              topic: 'Routing',
+              showLine: true,
+              desktop: true,
+            ),
+            _PlanStep(
+              color: scheme.secondary,
+              action: 'Review',
+              topic: 'WAN Design',
+              showLine: true,
+              desktop: true,
+            ),
+            _PlanStep(
+              color: CockpitColors.brand.success,
+              action: 'Finish with',
+              topic: 'Scenario Mode',
+              desktop: true,
+            ),
+            const SizedBox(height: CockpitSpacing.md),
+            Container(
+              padding: const EdgeInsets.all(CockpitSpacing.md),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.025),
+                borderRadius: BorderRadius.circular(CockpitRadii.sm),
               ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Icon(Icons.auto_awesome, size: 9, color: scheme.primary),
-                      const SizedBox(width: CockpitSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          'Estimated mastery after today',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                       Text(
-                        "Today's Briefing",
-                        style: theme.textTheme.labelSmall?.copyWith(
+                        '${data.estimatedMastery}%',
+                        style: theme.textTheme.titleLarge?.copyWith(
                           color: scheme.primary,
-                          fontSize: 6.5,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: CockpitSpacing.sm),
-                  Text(
-                    "Today's session",
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: '${data.sessionMinutes}'),
-                        const TextSpan(
-                          text: ' min',
-                          style: TextStyle(fontSize: 8),
-                        ),
-                      ],
-                    ),
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      color: scheme.primary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      height: 1,
-                    ),
-                  ),
-                  const Divider(height: CockpitSpacing.md),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _BriefMetric(
-                          icon: Icons.donut_large,
-                          color: scheme.primary,
-                          label: 'Mastery',
-                          value: '${data.mastery}%',
-                        ),
-                      ),
-                      Expanded(
-                        child: _BriefMetric(
-                          icon: Icons.shield_outlined,
-                          color: CockpitColors.brand.success,
-                          label: 'Exam Readiness',
-                          value: 'Ready',
-                        ),
-                      ),
-                      Expanded(
-                        child: _BriefMetric(
-                          icon: Icons.psychology,
-                          color: scheme.secondary,
-                          label: 'Retention',
-                          value: '${data.retention}%',
-                        ),
-                      ),
-                      Expanded(
-                        child: _BriefMetric(
-                          icon: Icons.local_fire_department,
-                          color: CockpitColors.brand.warning,
-                          label: 'Streak',
-                          value: '${data.streak} days',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
                   SizedBox(
-                    width: double.infinity,
-                    height: 26,
-                    child: Material(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(CockpitRadii.sm),
-                      child: InkWell(
-                        onTap: onContinue,
-                        borderRadius: BorderRadius.circular(CockpitRadii.sm),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: CockpitSpacing.sm,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.play_arrow_rounded,
-                                size: 13,
-                                color: scheme.onPrimary,
-                              ),
-                              Expanded(
-                                child: Text(
-                                  'Continue Learning',
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: scheme.onPrimary,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                Icons.arrow_forward,
-                                size: 11,
-                                color: scheme.onPrimary,
-                              ),
-                            ],
-                          ),
-                        ),
+                    height: 70,
+                    child: CustomPaint(
+                      painter: _WelcomeSparklinePainter(
+                        values: const [55, 57, 60, 71, 68, 79, 85, 91, 100],
+                        color: scheme.primary,
+                        gridColor: scheme.outlineVariant,
                       ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                  const SizedBox(height: CockpitSpacing.xs),
+                  Text(
+                    'Based on your learning habits and upcoming review '
+                    'schedule.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          ],
+        ),
+      );
+    }
 
-class _TodaysPlanCard extends StatelessWidget {
-  const _TodaysPlanCard({required this.data});
-
-  final WelcomeMockData data;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     return _WelcomeSurface(
       height: 98,
       child: Row(
@@ -565,8 +841,10 @@ class _StudioGlanceCard extends StatelessWidget {
     required this.onAskAi,
     required this.onStudyPlan,
     required this.onAnalytics,
+    this.desktop = false,
   });
 
+  final bool desktop;
   final VoidCallback onSeeAll;
   final VoidCallback onTeach;
   final VoidCallback onQuiz;
@@ -646,6 +924,50 @@ class _StudioGlanceCard extends StatelessWidget {
         onAnalytics,
       ),
     ];
+
+    if (desktop) {
+      return _WelcomeSurface(
+        padding: const EdgeInsets.all(CockpitSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Your Study Studio at a Glance',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onSeeAll,
+                  iconAlignment: IconAlignment.end,
+                  icon: const Icon(Icons.chevron_right, size: 18),
+                  label: const Text('See all tools'),
+                ),
+              ],
+            ),
+            const SizedBox(height: CockpitSpacing.sm),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: CockpitSpacing.sm,
+                crossAxisSpacing: CockpitSpacing.sm,
+                mainAxisExtent: 72,
+              ),
+              itemCount: tools.length,
+              itemBuilder: (_, i) => _ToolTile(data: tools[i], desktop: true),
+            ),
+          ],
+        ),
+      );
+    }
+
     return _WelcomeSurface(
       height: 111,
       child: Column(
@@ -725,7 +1047,9 @@ class _StudioGlanceCard extends StatelessWidget {
 }
 
 class _LearningMilestonesCard extends StatelessWidget {
-  const _LearningMilestonesCard();
+  const _LearningMilestonesCard({this.desktop = false});
+
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
@@ -742,6 +1066,61 @@ class _LearningMilestonesCard extends StatelessWidget {
         'Day\nConsistency',
       ),
     ];
+
+    if (desktop) {
+      return _WelcomeSurface(
+        padding: const EdgeInsets.all(CockpitSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _WelcomeSectionTitle(
+              icon: Icons.emoji_events_outlined,
+              title: 'Learning Milestones',
+              subtitle: 'Your progress so far',
+              color: scheme.primary,
+              desktop: true,
+            ),
+            const SizedBox(height: CockpitSpacing.md),
+            Wrap(
+              spacing: CockpitSpacing.sm,
+              runSpacing: CockpitSpacing.sm,
+              children: [
+                for (final m in metrics)
+                  Container(
+                    width: 100,
+                    padding: const EdgeInsets.all(CockpitSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: m.$2.withValues(alpha: 0.035),
+                      borderRadius: BorderRadius.circular(CockpitRadii.sm),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(m.$1, size: 20, color: m.$2),
+                        const SizedBox(height: CockpitSpacing.xs),
+                        Text(
+                          m.$3,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: CockpitSpacing.xxs),
+                        Text(
+                          m.$4,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     return _WelcomeSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -801,7 +1180,9 @@ class _LearningMilestonesCard extends StatelessWidget {
 }
 
 class _AiNoticedCard extends StatelessWidget {
-  const _AiNoticedCard();
+  const _AiNoticedCard({this.desktop = false});
+
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
@@ -828,6 +1209,43 @@ class _AiNoticedCard extends StatelessWidget {
         'Routing is no longer one of your\nweak areas.',
       ),
     ];
+
+    if (desktop) {
+      return _WelcomeSurface(
+        padding: const EdgeInsets.all(CockpitSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _WelcomeSectionTitle(
+              icon: Icons.auto_awesome,
+              title: 'AI has noticed...',
+              color: scheme.primary,
+              desktop: true,
+            ),
+            const SizedBox(height: CockpitSpacing.md),
+            for (final item in items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: CockpitSpacing.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(item.$1, size: 16, color: item.$2),
+                    const SizedBox(width: CockpitSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        item.$3.replaceAll('\n', ' '),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
     return _WelcomeSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -865,11 +1283,83 @@ class _AiNoticedCard extends StatelessWidget {
 }
 
 class _KnowledgeEvolutionCard extends StatelessWidget {
-  const _KnowledgeEvolutionCard();
+  const _KnowledgeEvolutionCard({this.desktop = false});
+
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+
+    if (desktop) {
+      return _WelcomeSurface(
+        padding: const EdgeInsets.all(CockpitSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Knowledge Evolution',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            Text(
+              'Your knowledge graph is growing.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: CockpitSpacing.md),
+            SizedBox(
+              height: 90,
+              child: Row(
+                children: [
+                  const _GraphCount(
+                    label: 'Before',
+                    value: '126',
+                    desktop: true,
+                  ),
+                  Expanded(
+                    child: CustomPaint(
+                      painter: _KnowledgeGraphPainter(
+                        primary: scheme.primary,
+                        secondary: scheme.secondary,
+                        success: CockpitColors.brand.success,
+                        line: scheme.outlineVariant,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward, size: 18, color: scheme.primary),
+                  Expanded(
+                    child: CustomPaint(
+                      painter: _KnowledgeGraphPainter(
+                        primary: scheme.primary,
+                        secondary: scheme.secondary,
+                        success: CockpitColors.brand.success,
+                        line: scheme.outlineVariant,
+                        expanded: true,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                  const _GraphCount(label: 'Now', value: '148', desktop: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: CockpitSpacing.xs),
+            Text(
+              'Your understanding continues to grow as you study.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    }
+
     return _WelcomeSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -937,12 +1427,134 @@ class _KnowledgeEvolutionCard extends StatelessWidget {
 }
 
 class _WhatsNewCard extends StatelessWidget {
-  const _WhatsNewCard();
+  const _WhatsNewCard({this.desktop = false});
+
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+
+    if (desktop) {
+      return _WelcomeSurface(
+        padding: const EdgeInsets.all(CockpitSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "What's New",
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CockpitSpacing.sm,
+                    vertical: CockpitSpacing.xxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(CockpitRadii.pill),
+                  ),
+                  child: Text(
+                    'New',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: CockpitSpacing.sm),
+            Container(
+              padding: const EdgeInsets.all(CockpitSpacing.md),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.035),
+                borderRadius: BorderRadius.circular(CockpitRadii.sm),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _WelcomeTinyText(
+                          'Lecture 6 introduced:',
+                          desktop: true,
+                        ),
+                        Text(
+                          'Wireless Networking',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: scheme.primary.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.wifi, size: 18, color: scheme.primary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: CockpitSpacing.md),
+            _WelcomeTinyText('The AI has already prepared:', desktop: true),
+            const SizedBox(height: CockpitSpacing.xs),
+            Row(
+              children: [
+                Expanded(
+                  child: _PreparedMetric(
+                    icon: Icons.menu_book,
+                    value: '+5',
+                    label: 'Topics',
+                    color: scheme.primary,
+                    desktop: true,
+                  ),
+                ),
+                Expanded(
+                  child: _PreparedMetric(
+                    icon: Icons.style,
+                    value: '+14',
+                    label: 'Flashcards',
+                    color: CockpitColors.brand.success,
+                    desktop: true,
+                  ),
+                ),
+                Expanded(
+                  child: _PreparedMetric(
+                    icon: Icons.quiz,
+                    value: '+8',
+                    label: 'Quiz Questions',
+                    color: CockpitColors.brand.warning,
+                    desktop: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: CockpitSpacing.xs),
+            Text(
+              'Ready whenever you are.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: CockpitColors.brand.success,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return _WelcomeSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1095,15 +1707,18 @@ class _HeaderAction extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.showDot = false,
+    this.desktop = false,
   });
 
   final IconData icon;
   final VoidCallback onTap;
   final bool showDot;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final size = desktop ? 44.0 : 35.0;
     return Material(
       color: scheme.surface,
       shape: const CircleBorder(),
@@ -1113,19 +1728,19 @@ class _HeaderAction extends StatelessWidget {
         onTap: onTap,
         customBorder: const CircleBorder(),
         child: SizedBox(
-          width: 35,
-          height: 35,
+          width: size,
+          height: size,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Icon(icon, size: 17, color: scheme.onSurface),
+              Icon(icon, size: desktop ? 20 : 17, color: scheme.onSurface),
               if (showDot)
                 Positioned(
-                  top: 7,
-                  right: 8,
+                  top: desktop ? 9 : 7,
+                  right: desktop ? 10 : 8,
                   child: Container(
-                    width: 5,
-                    height: 5,
+                    width: desktop ? 7 : 5,
+                    height: desktop ? 7 : 5,
                     decoration: BoxDecoration(
                       color: scheme.primary,
                       shape: BoxShape.circle,
@@ -1147,12 +1762,14 @@ class _BriefMetric extends StatelessWidget {
     required this.color,
     required this.label,
     required this.value,
+    this.desktop = false,
   });
 
   final IconData icon;
   final Color color;
   final String label;
   final String value;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
@@ -1162,24 +1779,29 @@ class _BriefMetric extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
+          Icon(icon, size: desktop ? 20 : 12, color: color),
           const SizedBox(width: CockpitSpacing.xs),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(fontSize: 4.7, height: 1),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontSize: desktop ? null : 4.7,
+                  height: desktop ? null : 1,
+                ),
               ),
               Text(
                 value,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontSize: 6.5,
-                  fontWeight: FontWeight.w700,
-                  height: 1.1,
-                ),
+                style:
+                    (desktop
+                            ? Theme.of(context).textTheme.titleSmall
+                            : Theme.of(context).textTheme.labelSmall)
+                        ?.copyWith(
+                          fontSize: desktop ? null : 6.5,
+                          fontWeight: FontWeight.w700,
+                          height: desktop ? null : 1.1,
+                        ),
               ),
             ],
           ),
@@ -1195,60 +1817,66 @@ class _PlanStep extends StatelessWidget {
     required this.action,
     required this.topic,
     this.showLine = false,
+    this.desktop = false,
   });
 
   final Color color;
   final String action;
   final String topic;
   final bool showLine;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 19,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 8,
-            child: Column(
-              children: [
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                if (showLine)
-                  Expanded(
-                    child: Container(
-                      width: 1,
-                      color: color.withValues(alpha: 0.28),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: CockpitSpacing.sm),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final dotSize = desktop ? 7.0 : 5.0;
+    // The connector line is an Expanded, so the row needs a bounded height.
+    // Desktop text is theme-sized, so measure it instead of hard-coding.
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: desktop ? 10 : 8,
+          child: Column(
             children: [
-              _WelcomeTinyText(action),
-              Text(
-                topic,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontSize: 7,
-                  fontWeight: FontWeight.w700,
-                  height: 1,
-                ),
+              Container(
+                width: dotSize,
+                height: dotSize,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
+              if (showLine)
+                Expanded(
+                  child: Container(
+                    width: 1,
+                    color: color.withValues(alpha: 0.28),
+                  ),
+                ),
             ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: CockpitSpacing.sm),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _WelcomeTinyText(action, desktop: desktop),
+            Text(
+              topic,
+              style:
+                  (desktop
+                          ? Theme.of(context).textTheme.bodyMedium
+                          : Theme.of(context).textTheme.labelMedium)
+                      ?.copyWith(
+                        fontSize: desktop ? null : 7,
+                        fontWeight: FontWeight.w700,
+                        height: desktop ? null : 1,
+                      ),
+            ),
+          ],
+        ),
+      ],
     );
+    return desktop
+        ? IntrinsicHeight(child: row)
+        : SizedBox(height: 19, child: row);
   }
 }
 
@@ -1263,14 +1891,20 @@ class _ToolData {
 }
 
 class _ToolTile extends StatelessWidget {
-  const _ToolTile({required this.data, this.compact = false});
+  const _ToolTile({
+    required this.data,
+    this.compact = false,
+    this.desktop = false,
+  });
 
   final _ToolData data;
   final bool compact;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final iconBoxSize = desktop ? 40.0 : (compact ? 20.0 : 23.0);
     return Material(
       color: scheme.surface,
       shape: RoundedRectangleBorder(
@@ -1281,23 +1915,25 @@ class _ToolTile extends StatelessWidget {
       child: InkWell(
         onTap: data.onTap,
         child: Padding(
-          padding: const EdgeInsets.all(CockpitSpacing.xs),
+          padding: EdgeInsets.all(
+            desktop ? CockpitSpacing.sm : CockpitSpacing.xs,
+          ),
           child: Row(
             children: [
               Container(
-                width: compact ? 20 : 23,
-                height: compact ? 20 : 23,
+                width: iconBoxSize,
+                height: iconBoxSize,
                 decoration: BoxDecoration(
                   color: data.color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(CockpitRadii.sm),
                 ),
                 child: Icon(
                   data.icon,
-                  size: compact ? 12 : 14,
+                  size: desktop ? 22 : (compact ? 12 : 14),
                   color: data.color,
                 ),
               ),
-              const SizedBox(width: CockpitSpacing.xs),
+              SizedBox(width: desktop ? CockpitSpacing.sm : CockpitSpacing.xs),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1307,11 +1943,15 @@ class _ToolTile extends StatelessWidget {
                       data.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontSize: compact ? 5 : 5.8,
-                        fontWeight: FontWeight.w700,
-                        height: 1,
-                      ),
+                      style:
+                          (desktop
+                                  ? Theme.of(context).textTheme.labelLarge
+                                  : Theme.of(context).textTheme.labelSmall)
+                              ?.copyWith(
+                                fontSize: desktop ? null : (compact ? 5 : 5.8),
+                                fontWeight: FontWeight.w700,
+                                height: desktop ? null : 1,
+                              ),
                     ),
                     const SizedBox(height: CockpitSpacing.xxs),
                     Text(
@@ -1320,8 +1960,8 @@ class _ToolTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: data.color,
-                        fontSize: compact ? 4.3 : 5,
-                        height: 1,
+                        fontSize: desktop ? null : (compact ? 4.3 : 5),
+                        height: desktop ? null : 1,
                       ),
                     ),
                   ],
@@ -1341,39 +1981,52 @@ class _WelcomeSectionTitle extends StatelessWidget {
     required this.title,
     required this.color,
     this.subtitle,
+    this.desktop = false,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
   final Color color;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 10, color: color),
+        Icon(icon, size: desktop ? 18 : 10, color: color),
         const SizedBox(width: CockpitSpacing.sm),
         Expanded(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontSize: 7,
-                  fontWeight: FontWeight.w700,
-                  height: 1,
-                ),
+                style:
+                    (desktop
+                            ? Theme.of(context).textTheme.titleMedium
+                            : Theme.of(context).textTheme.labelMedium)
+                        ?.copyWith(
+                          fontSize: desktop ? null : 7,
+                          fontWeight: FontWeight.w700,
+                          height: desktop ? null : 1,
+                        ),
               ),
               if (subtitle != null)
                 Text(
                   subtitle!,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 5.2,
-                    height: 1,
-                  ),
+                  style:
+                      (desktop
+                              ? Theme.of(context).textTheme.bodySmall
+                              : Theme.of(context).textTheme.labelSmall)
+                          ?.copyWith(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                            fontSize: desktop ? null : 5.2,
+                            height: desktop ? null : 1,
+                          ),
                 ),
             ],
           ),
@@ -1384,26 +2037,32 @@ class _WelcomeSectionTitle extends StatelessWidget {
 }
 
 class _GraphCount extends StatelessWidget {
-  const _GraphCount({required this.label, required this.value});
+  const _GraphCount({
+    required this.label,
+    required this.value,
+    this.desktop = false,
+  });
 
   final String label;
   final String value;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _WelcomeTinyText(label),
+        _WelcomeTinyText(label, desktop: desktop),
         Text(
           value,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontSize: 11,
+            fontSize: desktop ? null : 11,
             fontWeight: FontWeight.w700,
-            height: 1,
+            height: desktop ? null : 1,
           ),
         ),
-        const _WelcomeTinyText('Connections'),
+        _WelcomeTinyText('Connections', desktop: desktop),
       ],
     );
   }
@@ -1415,12 +2074,14 @@ class _PreparedMetric extends StatelessWidget {
     required this.value,
     required this.label,
     required this.color,
+    this.desktop = false,
   });
 
   final IconData icon;
   final String value;
   final String label;
   final Color color;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
@@ -1430,23 +2091,23 @@ class _PreparedMetric extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: CockpitSpacing.xxs),
+          Icon(icon, size: desktop ? 18 : 10, color: color),
+          SizedBox(width: desktop ? CockpitSpacing.sm : CockpitSpacing.xxs),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 value,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontSize: 5.5,
+                  fontSize: desktop ? null : 5.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               Text(
                 label,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(fontSize: 3.8),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontSize: desktop ? null : 3.8,
+                ),
               ),
             ],
           ),
@@ -1463,6 +2124,7 @@ class _WelcomeActionButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.filled = false,
+    this.desktop = false,
   });
 
   final String title;
@@ -1470,6 +2132,7 @@ class _WelcomeActionButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool filled;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
@@ -1492,49 +2155,55 @@ class _WelcomeActionButton extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(CockpitRadii.md),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 12,
-                color: filled ? scheme.onPrimary : scheme.primary,
-              ),
-              const SizedBox(width: CockpitSpacing.sm),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: filled ? scheme.onPrimary : scheme.primary,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
-                        height: 1,
-                      ),
-                    ),
-                    const SizedBox(height: CockpitSpacing.xxs),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: filled
-                            ? scheme.onPrimary.withValues(alpha: 0.8)
-                            : scheme.onSurfaceVariant,
-                        fontSize: 5,
-                        height: 1,
-                      ),
-                    ),
-                  ],
+          child: Padding(
+            padding: desktop
+                ? const EdgeInsets.symmetric(vertical: CockpitSpacing.md)
+                : EdgeInsets.zero,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: desktop ? 20 : 12,
+                  color: filled ? scheme.onPrimary : scheme.primary,
                 ),
-              ),
-            ],
+                const SizedBox(width: CockpitSpacing.sm),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: filled ? scheme.onPrimary : scheme.primary,
+                          fontSize: desktop ? null : 8,
+                          fontWeight: FontWeight.w700,
+                          height: desktop ? null : 1,
+                        ),
+                      ),
+                      const SizedBox(height: CockpitSpacing.xxs),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: filled
+                              ? scheme.onPrimary.withValues(alpha: 0.8)
+                              : scheme.onSurfaceVariant,
+                          fontSize: desktop ? null : 5,
+                          height: desktop ? null : 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1543,9 +2212,10 @@ class _WelcomeActionButton extends StatelessWidget {
 }
 
 class _WelcomeTinyText extends StatelessWidget {
-  const _WelcomeTinyText(this.text);
+  const _WelcomeTinyText(this.text, {this.desktop = false});
 
   final String text;
+  final bool desktop;
 
   @override
   Widget build(BuildContext context) {
@@ -1555,8 +2225,8 @@ class _WelcomeTinyText extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
         color: Theme.of(context).colorScheme.onSurfaceVariant,
-        fontSize: 5,
-        height: 1.05,
+        fontSize: desktop ? null : 5,
+        height: desktop ? null : 1.05,
       ),
     );
   }
