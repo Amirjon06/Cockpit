@@ -66,8 +66,9 @@ class _TeachMePageState extends ConsumerState<TeachMePage> {
       _thinking = true;
       _controller.clear();
     });
-    final reply =
-        await ref.read(aiServiceProvider).teach(topic: topic, message: text);
+    final reply = await ref
+        .read(aiServiceProvider)
+        .teach(topic: topic, message: text);
     if (!mounted) return;
     setState(() {
       _messages.add(_Msg(reply, fromUser: false));
@@ -165,12 +166,14 @@ class _TeachMePageState extends ConsumerState<TeachMePage> {
                                   topic: topic,
                                   open: _lessonOpen,
                                   onToggle: () => setState(
-                                      () => _lessonOpen = !_lessonOpen),
+                                    () => _lessonOpen = !_lessonOpen,
+                                  ),
                                 ),
                                 const SizedBox(height: CockpitSpacing.xl),
                                 _ReadyToTest(
-                                  onStart: () => context
-                                      .go('$base/quiz?topicId=${topic.id}'),
+                                  onStart: () => context.go(
+                                    '$base/quiz?topicId=${topic.id}',
+                                  ),
                                 ),
                               ],
                             ),
@@ -260,7 +263,9 @@ class _TeachMePageState extends ConsumerState<TeachMePage> {
                 onSend: (t) => _send(topic, t),
               ),
               const SizedBox(height: CockpitSpacing.xl),
-              _ReadyToTest(onStart: () => context.go('$base/quiz?topicId=${topic.id}')),
+              _ReadyToTest(
+                onStart: () => context.go('$base/quiz?topicId=${topic.id}'),
+              ),
               if (related.isNotEmpty) ...[
                 const SizedBox(height: CockpitSpacing.xl),
                 _RelatedConcepts(
@@ -275,8 +280,12 @@ class _TeachMePageState extends ConsumerState<TeachMePage> {
           current: topic.title,
           index: index,
           total: total,
-          onPrev: prev == null ? null : () => context.go('$base/teach/${prev.id}'),
-          onNext: next == null ? null : () => context.go('$base/teach/${next.id}'),
+          onPrev: prev == null
+              ? null
+              : () => context.go('$base/teach/${prev.id}'),
+          onNext: next == null
+              ? null
+              : () => context.go('$base/teach/${next.id}'),
         ),
       ],
     );
@@ -303,8 +312,9 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    void soon(String l) => ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('$l — coming soon')));
+    void soon(String l) => ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$l — coming soon')));
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -327,12 +337,17 @@ class _Header extends StatelessWidget {
                       studioTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     Row(
                       children: [
-                        Icon(Icons.school_rounded, size: 13, color: scheme.primary),
+                        Icon(
+                          Icons.school_rounded,
+                          size: 13,
+                          color: scheme.primary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Teach Me',
@@ -359,14 +374,16 @@ class _Header extends StatelessWidget {
             children: [
               Text(
                 'Lesson Progress',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
               const Spacer(),
               Text(
                 '$lessonNumber / $total',
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -390,7 +407,11 @@ class _Header extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _Hero extends StatelessWidget {
-  const _Hero({required this.topic, required this.onStart, required this.onAsk});
+  const _Hero({
+    required this.topic,
+    required this.onStart,
+    required this.onAsk,
+  });
   final Topic topic;
   final VoidCallback onStart;
   final VoidCallback onAsk;
@@ -565,18 +586,25 @@ class _LessonCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     topic.title,
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-                Icon(open ? Icons.expand_less : Icons.expand_more,
-                    color: scheme.onSurfaceVariant),
+                Icon(
+                  open ? Icons.expand_less : Icons.expand_more,
+                  color: scheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),
           if (open) ...[
             const SizedBox(height: CockpitSpacing.lg),
-            _Pill(icon: Icons.menu_book_rounded, label: 'Definition', color: scheme.primary),
+            _Pill(
+              icon: Icons.menu_book_rounded,
+              label: 'Definition',
+              color: scheme.primary,
+            ),
             const SizedBox(height: CockpitSpacing.sm),
             Text(
               topic.definition,
@@ -590,7 +618,9 @@ class _LessonCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: scheme.primary.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(CockpitRadii.md),
-                border: Border.all(color: scheme.primary.withValues(alpha: 0.12)),
+                border: Border.all(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,17 +641,25 @@ class _LessonCard extends StatelessWidget {
                     const SizedBox(height: CockpitSpacing.md),
                     for (final ex in topic.examples)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: CockpitSpacing.xs),
+                        padding: const EdgeInsets.only(
+                          bottom: CockpitSpacing.xs,
+                        ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.check_circle,
-                                size: 15, color: scheme.tertiary),
+                            Icon(
+                              Icons.check_circle,
+                              size: 15,
+                              color: scheme.tertiary,
+                            ),
                             const SizedBox(width: CockpitSpacing.sm),
                             Expanded(
-                              child: Text(ex,
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(height: 1.35)),
+                              child: Text(
+                                ex,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  height: 1.35,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -657,7 +695,8 @@ class _LessonCard extends StatelessWidget {
                 icon: Icons.description_outlined,
                 color: scheme.onSurfaceVariant,
                 title: 'From your material',
-                body: '"${topic.sources.first.snippet}"\n— ${topic.sources.first.fileName}'
+                body:
+                    '"${topic.sources.first.snippet}"\n— ${topic.sources.first.fileName}'
                     '${topic.sources.first.page != null ? ', p.${topic.sources.first.page}' : ''}',
               ),
           ],
@@ -692,8 +731,10 @@ class _Pill extends StatelessWidget {
           const SizedBox(width: CockpitSpacing.xs),
           Text(
             label,
-            style: theme.textTheme.labelMedium
-                ?.copyWith(color: color, fontWeight: FontWeight.w700),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -733,16 +774,15 @@ class _Callout extends StatelessWidget {
               const SizedBox(width: CockpitSpacing.sm),
               Text(
                 title,
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(color: color, fontWeight: FontWeight.w700),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
           const SizedBox(height: CockpitSpacing.xs),
-          Text(
-            body,
-            style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
-          ),
+          Text(body, style: theme.textTheme.bodySmall?.copyWith(height: 1.4)),
         ],
       ),
     );
@@ -797,7 +837,11 @@ class _AskAi extends StatelessWidget {
                   color: scheme.primary.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.smart_toy_rounded, size: 20, color: scheme.primary),
+                child: Icon(
+                  Icons.smart_toy_rounded,
+                  size: 20,
+                  color: scheme.primary,
+                ),
               ),
               const SizedBox(width: CockpitSpacing.sm),
               Expanded(
@@ -896,17 +940,21 @@ class _SendButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final violet = _shiftHue(scheme.primary, -28);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(CockpitRadii.pill),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(colors: [scheme.secondary, violet]),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(CockpitRadii.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(CockpitRadii.pill),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(colors: [scheme.secondary, violet]),
+          ),
+          child: const Icon(Icons.send, color: Colors.white, size: 18),
         ),
-        child: const Icon(Icons.send, color: Colors.white, size: 18),
       ),
     );
   }
@@ -944,14 +992,16 @@ class _ReadyToTest extends StatelessWidget {
               children: [
                 Text(
                   'Ready to test yourself?',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Check what stuck with a quick quiz.',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -986,8 +1036,9 @@ class _RelatedConcepts extends StatelessWidget {
       children: [
         Text(
           'Related Concepts',
-          style: theme.textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w700),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: CockpitSpacing.md),
         SizedBox(
@@ -996,7 +1047,8 @@ class _RelatedConcepts extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.zero,
             itemCount: related.length,
-            separatorBuilder: (_, _) => const SizedBox(width: CockpitSpacing.md),
+            separatorBuilder: (_, _) =>
+                const SizedBox(width: CockpitSpacing.md),
             itemBuilder: (context, i) => _RelatedCard(
               topic: related[i],
               nextUp: i == 0,
@@ -1065,22 +1117,28 @@ class _RelatedCard extends StatelessWidget {
                   color: scheme.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.account_tree_outlined,
-                    size: 18, color: scheme.primary),
+                child: Icon(
+                  Icons.account_tree_outlined,
+                  size: 18,
+                  color: scheme.primary,
+                ),
               ),
             const Spacer(),
             Text(
               topic.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w700, height: 1.1),
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                height: 1.1,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
               '${topic.estimatedStudyTimeMinutes} min',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -1137,13 +1195,15 @@ class _LessonNav extends StatelessWidget {
                   current,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 Text(
                   '${index + 1} of $total',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -1177,7 +1237,9 @@ class _NavButton extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final enabled = onTap != null;
-    final color = enabled ? scheme.onSurface : scheme.onSurfaceVariant.withValues(alpha: 0.4);
+    final color = enabled
+        ? scheme.onSurface
+        : scheme.onSurfaceVariant.withValues(alpha: 0.4);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(CockpitRadii.pill),
@@ -1195,7 +1257,10 @@ class _NavButton extends StatelessWidget {
           children: [
             if (!trailing) Icon(icon, size: 16, color: color),
             if (!trailing) const SizedBox(width: CockpitSpacing.xs),
-            Text(label, style: theme.textTheme.labelMedium?.copyWith(color: color)),
+            Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(color: color),
+            ),
             if (trailing) const SizedBox(width: CockpitSpacing.xs),
             if (trailing) Icon(icon, size: 16, color: color),
           ],
@@ -1326,8 +1391,10 @@ class _OutlineButton extends StatelessWidget {
                 children: [
                   Icon(icon, size: 18, color: scheme.onSurface),
                   const SizedBox(width: CockpitSpacing.sm),
-                  Text(label,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                    label,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ],
               ),
             ),
@@ -1377,21 +1444,25 @@ class _TopicListPane extends StatelessWidget {
               children: [
                 Text(
                   'Lessons',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const Spacer(),
                 Text(
                   '${currentIndex + 1}/${topics.length}',
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: CockpitSpacing.sm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: CockpitSpacing.sm,
+              ),
               itemCount: topics.length,
               itemBuilder: (context, i) {
                 final t = topics[i];
@@ -1405,6 +1476,9 @@ class _TopicListPane extends StatelessWidget {
                     borderRadius: BorderRadius.circular(CockpitRadii.md),
                     child: InkWell(
                       onTap: () => onTap(t),
+                      mouseCursor: SystemMouseCursors.click,
+                      hoverColor: scheme.primary.withValues(alpha: 0.08),
+                      splashColor: scheme.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(CockpitRadii.md),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -1440,16 +1514,20 @@ class _TopicListPane extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: selected ? scheme.primary : scheme.onSurface,
-                                  fontWeight:
-                                      selected ? FontWeight.w700 : FontWeight.w500,
+                                  color: selected
+                                      ? scheme.primary
+                                      : scheme.onSurface,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
                                 ),
                               ),
                             ),
                             Text(
                               '${(t.mastery * 100).round()}%',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
@@ -1513,8 +1591,9 @@ class _AssistantPane extends StatelessWidget {
               const SizedBox(height: CockpitSpacing.xl),
               Text(
                 'Related Concepts',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: CockpitSpacing.sm),
               for (final t in related)
@@ -1539,45 +1618,61 @@ class _RelatedTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return InkWell(
-      onTap: onTap,
+    return Material(
+      color: scheme.surface,
       borderRadius: BorderRadius.circular(CockpitRadii.md),
-      child: Container(
-        padding: const EdgeInsets.all(CockpitSpacing.md),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(CockpitRadii.md),
-          border: Border.all(color: scheme.outlineVariant),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+      child: InkWell(
+        onTap: onTap,
+        mouseCursor: SystemMouseCursors.click,
+        hoverColor: scheme.primary.withValues(alpha: 0.08),
+        splashColor: scheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(CockpitRadii.md),
+        child: Container(
+          padding: const EdgeInsets.all(CockpitSpacing.md),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(CockpitRadii.md),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.account_tree_outlined,
+                  size: 18,
+                  color: scheme.primary,
+                ),
               ),
-              child: Icon(Icons.account_tree_outlined,
-                  size: 18, color: scheme.primary),
-            ),
-            const SizedBox(width: CockpitSpacing.md),
-            Expanded(
-              child: Text(
-                topic.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
+              const SizedBox(width: CockpitSpacing.md),
+              Expanded(
+                child: Text(
+                  topic.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            ),
-            Text(
-              '${topic.estimatedStudyTimeMinutes} min',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
-          ],
+              Text(
+                '${topic.estimatedStudyTimeMinutes} min',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
+            ],
+          ),
         ),
       ),
     );
