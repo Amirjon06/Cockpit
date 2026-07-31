@@ -47,6 +47,24 @@ async def insert_chunks(
     return len(rows)
 
 
+async def delete_studio_chunks(
+    session: AsyncSession,
+    *,
+    studio_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> int:
+    """Delete all chunks for a studio (owner-scoped). Returns rows removed.
+
+    Chunks live in the vector DB, which has no cross-database FK to `studios`,
+    so studio deletion must clean them here explicitly."""
+    result = await session.execute(
+        text("DELETE FROM chunks WHERE studio_id = :sid AND user_id = :uid"),
+        {"sid": str(studio_id), "uid": str(user_id)},
+    )
+    await session.commit()
+    return result.rowcount or 0
+
+
 async def hybrid_search(
     session: AsyncSession,
     *,

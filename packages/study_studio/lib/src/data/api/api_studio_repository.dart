@@ -44,6 +44,11 @@ class ApiStudioRepository implements StudioRepository {
   }
 
   @override
+  Future<void> deleteStudio(String studioId) async {
+    await _sse.delete('/studios/$studioId');
+  }
+
+  @override
   Future<Topic> getTopic(String studioId, String topicId) async {
     final events = await _sse.get('/studios/$studioId/topics/$topicId');
     final data = events.firstWhere(

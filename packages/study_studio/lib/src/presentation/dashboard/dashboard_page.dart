@@ -284,12 +284,12 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _StudioMenu extends StatelessWidget {
+class _StudioMenu extends ConsumerWidget {
   const _StudioMenu({required this.studio});
   final Studio studio;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return Container(
       width: 40,
@@ -300,18 +300,73 @@ class _StudioMenu extends StatelessWidget {
       ),
       child: PopupMenuButton<String>(
         icon: Icon(Icons.more_horiz, size: 20, color: theme.colorScheme.onSurface),
-        onSelected: (v) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$v — coming soon')),
-        ),
-        itemBuilder: (context) => const [
-          PopupMenuItem(value: 'Rename', child: Text('Rename')),
-          PopupMenuItem(value: 'Duplicate', child: Text('Duplicate')),
-          PopupMenuItem(value: 'Export notes', child: Text('Export notes')),
-          PopupMenuItem(value: 'Rebuild Studio', child: Text('Rebuild Studio')),
-          PopupMenuItem(value: 'Delete', child: Text('Delete')),
+        onSelected: (v) {
+          if (v == 'Delete') {
+            _confirmAndDelete(context, ref);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$v — coming soon')),
+            );
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(value: 'Rename', child: Text('Rename')),
+          const PopupMenuItem(value: 'Duplicate', child: Text('Duplicate')),
+          const PopupMenuItem(value: 'Export notes', child: Text('Export notes')),
+          const PopupMenuItem(
+              value: 'Rebuild Studio', child: Text('Rebuild Studio')),
+          PopupMenuItem(
+            value: 'Delete',
+            child: Text('Delete', style: TextStyle(color: theme.colorScheme.error)),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final repo = ref.read(studioRepositoryProvider);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          title: const Text('Delete studio?'),
+          content: Text(
+            'This permanently deletes "${studio.title}" and all of its topics, '
+            'flashcards, quizzes, and scenarios. This cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: scheme.error),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    try {
+      await repo.deleteStudio(studio.id);
+      ref.invalidate(studioListProvider);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Deleted "${studio.title}"')),
+      );
+      router.go('/study');
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not delete studio: $e')),
+      );
+    }
   }
 }
 

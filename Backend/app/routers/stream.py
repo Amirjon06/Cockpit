@@ -21,9 +21,16 @@ from ..config import get_settings
 from ..db import CockpitSession, SharedSession, VectorSession
 from ..deps import get_current_user_id
 from ..dto import AskCitationDTO, MeDTO, ScenarioDTO, StudioDTO, TopicDTO
-from ..models.cockpit import GeneratedScenario, GeneratedTopic, IngestJob, Studio
+from ..models.cockpit import (
+    Document,
+    GeneratedScenario,
+    GeneratedTopic,
+    IngestJob,
+    Studio,
+)
 from ..seed import seed_studios
-from ..services import llm, rag
+from ..services import llm, rag, vectorstore
+from ..services.objectstore import get_object_store
 from ..sse import done, error, event
 
 router = APIRouter(tags=["sse"])
@@ -196,6 +203,65 @@ async def get_studio(
             return
         yield event("data", studio)
         yield done()
+
+    return EventSourceResponse(gen())
+
+
+@router.delete("/studios/{studio_id}")
+async def delete_studio(
+    studio_id: str,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> EventSourceResponse:
+    """Delete an owned studio and all of its data.
+
+    The `studios` row cascades (FK ondelete=CASCADE) to documents, ingest jobs,
+    generated topics, and scenarios in the cockpit DB. Vector chunks (separate
+    DB, no cross-db FK) and object-storage source files are cleaned explicitly.
+    Seed demo studios are read-only and cannot be deleted.
+    """
+
+    async def gen() -> AsyncIterator[dict]:
+        try:
+            sid = uuid.UUID(studio_id)
+        except ValueError:
+            yield error(f"Studio {studio_id} not found")
+            return
+        try:
+            async with CockpitSession() as cockpit:
+                row = await cockpit.get(Studio, sid)
+                if row is None or row.user_id != user_id:
+                    yield error(f"Studio {studio_id} not found")
+                    return
+                # Grab object keys before the cascade removes the documents.
+                keys = await cockpit.execute(
+                    select(Document.object_key).where(Document.studio_id == sid)
+                )
+                object_keys = [k for (k,) in keys.all()]
+                await cockpit.delete(row)  # cascades docs/jobs/topics/scenarios
+                await cockpit.commit()
+
+            # Vector chunks (separate DB) — owner-scoped delete, best-effort.
+            try:
+                async with VectorSession() as vector:
+                    await vectorstore.delete_studio_chunks(
+                        vector, studio_id=sid, user_id=user_id
+                    )
+            except Exception:  # noqa: BLE001 — cleanup shouldn't fail the delete
+                pass
+
+            # Source files in object storage — best-effort per key.
+            store = None
+            for key in object_keys:
+                try:
+                    store = store or get_object_store()
+                    store.delete(key)
+                except Exception:  # noqa: BLE001
+                    pass
+
+            yield event("data", {"id": studio_id, "deleted": True})
+            yield done()
+        except Exception as exc:  # noqa: BLE001
+            yield error(f"Could not delete studio: {exc}")
 
     return EventSourceResponse(gen())
 

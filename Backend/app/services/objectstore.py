@@ -46,6 +46,9 @@ class ObjectStore:
     def get(self, key: str) -> bytes:
         return self._client.get_object(Bucket=self._bucket, Key=key)["Body"].read()
 
+    def delete(self, key: str) -> None:
+        self._client.delete_object(Bucket=self._bucket, Key=key)
+
     def presigned_get(self, key: str, expires: int = 3600) -> str:
         return self._client.generate_presigned_url(
             "get_object", Params={"Bucket": self._bucket, "Key": key}, ExpiresIn=expires

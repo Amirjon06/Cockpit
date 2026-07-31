@@ -12,6 +12,10 @@ abstract interface class StudioRepository {
 
   Future<Studio> getStudio(String studioId);
 
+  /// Permanently delete an owned studio and all of its Study Objects. Seed demo
+  /// studios are read-only on the backend and will be rejected.
+  Future<void> deleteStudio(String studioId);
+
   Future<Topic> getTopic(String studioId, String topicId);
 
   /// Update mastery after a quiz answer.

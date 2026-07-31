@@ -39,6 +39,11 @@ class InMemoryStudioRepository implements StudioRepository {
   }
 
   @override
+  Future<void> deleteStudio(String studioId) async {
+    _studios.remove(studioId);
+  }
+
+  @override
   Future<Topic> getTopic(String studioId, String topicId) async {
     final studio = await getStudio(studioId);
     return studio.topics.firstWhere(

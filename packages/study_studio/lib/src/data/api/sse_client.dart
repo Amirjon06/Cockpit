@@ -81,6 +81,12 @@ class SseClient {
     return _parse(resp);
   }
 
+  Future<List<SseEvent>> delete(String path, {Map<String, dynamic>? query}) async {
+    final resp =
+        await _client.delete(_uri(path, query), headers: await _headers());
+    return _parse(resp);
+  }
+
   /// Base URL + dev user id, exposed for the multipart upload client.
   String get baseUrl => _baseUrl;
   Future<Map<String, String>> authHeaders() => _headers();
