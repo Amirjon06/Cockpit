@@ -62,9 +62,22 @@ Return ONLY a JSON object:
   "commonMistakes": [str, ...],      // 2-4 pitfalls learners hit
   "memoryHooks": [str, ...],         // 1-3 mnemonics / analogies
   "flashcards": [{{"front": str, "back": str}}, ...],   // 6-10
-  "quizQuestions": [{{"question": str, "choices": [str], "answer": str, "explanation": str}}, ...],  // 4-6
+  "quizQuestions": [                                     // 4-6, MIX the types below
+    {{
+      "type": "multipleChoice" | "trueFalse" | "shortAnswer" | "fillBlank",
+      "question": str,                 // for fillBlank, put a "____" blank inside the sentence
+      "choices": [str],                // multipleChoice: 4 options; trueFalse: ["True","False"]; shortAnswer/fillBlank: []
+      "answer": str,                   // the exact correct answer; must equal one choice for multipleChoice/trueFalse
+      "explanation": str
+    }}, ...
+  ],
   "difficulty": 1-5, "importance": 1-5
 }}
+Vary the quiz question types to suit THIS subject, don't use only multipleChoice:
+- conceptual / reasoning topics favor multipleChoice and trueFalse
+- terminology, facts, formulas, vocabulary favor shortAnswer and fillBlank
+- keep shortAnswer and fillBlank answers to 1-3 words so they can be auto-graded
+- when there are 3+ questions, include at least two different types
 Base everything ONLY on the provided material.
 """.strip()
 
@@ -74,6 +87,9 @@ _OUTLINE_MAX_TOKENS = 3_000   # outline is small
 _DETAIL_MAX_TOKENS = 4_000    # per-lesson rich content
 _DETAIL_CONCURRENCY = 8       # parallel lesson calls
 _DETAIL_TOP_K = 8            # chunks retrieved per lesson
+
+# Quiz item types the Flutter client knows how to render (QuizType enum).
+_QUIZ_TYPES = {"multipleChoice", "trueFalse", "shortAnswer", "fillBlank"}
 
 
 def _parse_json(text: str):
@@ -118,11 +134,25 @@ def _shape_topic(raw: dict, studio_id: str) -> dict:
         }
 
     def _quiz(q: dict) -> dict:
-        choices = q.get("choices") or []
+        choices = [str(c) for c in (q.get("choices") or [])]
+        qtype = q.get("type")
+        if qtype not in _QUIZ_TYPES:
+            # Model omitted/garbled the type → infer from the answer shape.
+            if len(choices) > 2:
+                qtype = "multipleChoice"
+            elif len(choices) == 2:
+                qtype = "trueFalse"
+            else:
+                qtype = "shortAnswer"
+        # Normalize choices to the type so the client renders the right widget.
+        if qtype == "trueFalse":
+            choices = ["True", "False"]
+        elif qtype in ("shortAnswer", "fillBlank"):
+            choices = []
         return {
             "id": f"q_{uuid.uuid4().hex[:8]}",
             "topicId": topic_id,
-            "type": "multipleChoice" if len(choices) > 2 else "trueFalse",
+            "type": qtype,
             "question": q.get("question", ""),
             "choices": choices,
             "answer": q.get("answer", ""),
