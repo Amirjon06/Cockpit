@@ -42,7 +42,15 @@
   .nav-tag{font-size:12.5px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;font-weight:500}
 
   /* HERO */
-  .hero{padding:104px 0 60px}
+  .hero{position:relative;overflow:hidden;min-height:660px;display:flex;align-items:center;isolation:isolate}
+  .hero-bg{position:absolute;inset:0;z-index:0;background:radial-gradient(120% 110% at 18% -10%,#320309,#0a0a0b 62%)}
+  .hero-img{position:absolute;inset:-28px;background:#0a0a0b url('assets/hero-bg.jpg') center/cover no-repeat;filter:url(#liquid);will-change:filter}
+  .hero-veil{position:absolute;inset:0;z-index:1;background:
+    linear-gradient(90deg,rgba(6,6,7,.95) 6%,rgba(6,6,7,.62) 40%,rgba(6,6,7,.14) 72%,rgba(6,6,7,.42)),
+    linear-gradient(to bottom,rgba(6,6,7,.45),transparent 26%,transparent 58%,var(--bg))}
+  .hero-ripple{position:absolute;inset:0;z-index:2;width:100%;height:100%;pointer-events:none}
+  .hero-content{position:relative;z-index:3;width:100%;padding:74px 0 58px}
+  .svg-defs{position:absolute;width:0;height:0;pointer-events:none}
   .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:30px}
   .eyebrow .ln{width:34px;height:1px;background:var(--red)}
   .hero h1{font-family:'Poppins';font-weight:900;letter-spacing:-.035em;line-height:.94;font-size:clamp(52px,9vw,132px);text-transform:uppercase}
@@ -166,7 +174,8 @@
     .card-num{font-size:64px;top:16px;right:20px}
     .card{padding:28px 24px}
     .block,.done{grid-template-columns:1fr;gap:10px}
-    .hero{padding:72px 0 40px}
+    .hero{min-height:520px}
+    .hero-content{padding:56px 0 40px}
     .week{padding-top:64px}
   }
   @media(max-width:520px){.wrap{padding:0 18px}.chip.time{margin-left:0}.hero-meta{gap:22px}}
@@ -176,6 +185,14 @@
 <div class="bg-fx"><div class="glow a"></div><div class="glow b"></div></div>
 <div class="grain"></div>
 <div class="cursor" id="cursor"></div>
+<svg class="svg-defs" aria-hidden="true"><defs>
+  <filter id="liquid" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.010 0.014" numOctaves="2" seed="7" result="noise">
+      <animate attributeName="baseFrequency" dur="26s" values="0.010 0.014;0.014 0.010;0.010 0.014" repeatCount="indefinite"/>
+    </feTurbulence>
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="16" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</defs></svg>
 
 <header class="nav">
   <div class="wrap nav-in">
@@ -186,7 +203,13 @@
 
 <main>
   <!-- HERO -->
-  <section class="hero wrap">
+  <section class="hero">
+    <div class="hero-bg" aria-hidden="true">
+      <div class="hero-img"></div>
+      <canvas class="hero-ripple" id="ripple"></canvas>
+      <div class="hero-veil"></div>
+    </div>
+    <div class="wrap hero-content">
     <span class="eyebrow"><span class="ln"></span>Study Studio · Engineering Internship</span>
     <h1><span class="out">Build.</span><span class="red">Ship.</span><span class="out">Repeat.</span></h1>
     <div class="hero-sub">
@@ -196,6 +219,7 @@
         <div class="m"><span class="k">Current</span><span class="v">Assignment 01</span></div>
         <div class="m"><span class="k">Cadence</span><span class="v r">Weekly</span></div>
       </div>
+    </div>
     </div>
   </section>
 
@@ -455,6 +479,54 @@
   links.forEach(function(l){ map[l.dataset.target]=l; });
   var actIO = new IntersectionObserver(function(es){ es.forEach(function(en){ if(en.isIntersecting){ links.forEach(function(l){l.classList.remove('active');}); var a=map[en.target.id]; if(a)a.classList.add('active'); } }); }, {rootMargin:'-45% 0px -50% 0px', threshold:0});
   cards.forEach(function(c){ actIO.observe(c); });
+
+  // interactive water ripples over the hero image
+  (function(){
+    var hero = document.querySelector('.hero');
+    var cv = document.getElementById('ripple');
+    if(!hero || !cv) return;
+    var ctx = cv.getContext('2d');
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = 0, H = 0;
+    function size(){
+      var r = hero.getBoundingClientRect();
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    size(); window.addEventListener('resize', size);
+
+    var ripples = [], last = 0;
+    function add(x, y, strong){
+      ripples.push({ x:x, y:y, r: strong?10:4, max: strong?300:170, a: strong?0.55:0.34, w: strong?2.6:1.5 });
+      if (ripples.length > 30) ripples.shift();
+    }
+    if (window.matchMedia('(pointer:fine)').matches){
+      hero.addEventListener('pointermove', function(e){
+        var now = performance.now(); if (now - last < 36) return; last = now;
+        var r = hero.getBoundingClientRect(); add(e.clientX - r.left, e.clientY - r.top, false);
+      });
+      hero.addEventListener('pointerdown', function(e){
+        var r = hero.getBoundingClientRect(); add(e.clientX - r.left, e.clientY - r.top, true);
+      });
+    }
+    function frame(){
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+      for (var i = ripples.length - 1; i >= 0; i--){
+        var p = ripples[i];
+        p.r += (p.max - p.r) * 0.045 + 0.7; p.a *= 0.955;
+        if (p.a < 0.012){ ripples.splice(i, 1); continue; }
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.2832);
+        ctx.strokeStyle = 'rgba(255,86,92,' + p.a + ')'; ctx.lineWidth = p.w; ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.7, 0, 6.2832);
+        ctx.strokeStyle = 'rgba(255,255,255,' + (p.a * 0.5) + ')'; ctx.lineWidth = p.w * 0.6; ctx.stroke();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
 </script>
 </body>
 </html>
