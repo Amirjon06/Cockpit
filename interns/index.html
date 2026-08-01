@@ -11,45 +11,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Poppins:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
 <style>
   :root{
-    --bg:#080809;
-    --bg-2:#0d0d10;
-    --surface:#131318;
-    --surface-2:#17171d;
-    --line:rgba(255,255,255,.08);
-    --line-2:rgba(255,255,255,.14);
-    --text:#F4F4F5;
-    --muted:#8a8a93;
-    --muted-2:#61616a;
-    --red:#FF2E39;
-    --red-2:#E11020;
-    --red-glow:rgba(255,46,57,.55);
-    --white:#ffffff;
-    --maxw:1180px;
-    --ease:cubic-bezier(.22,1,.36,1);
+    --bg:#080809; --bg-2:#0d0d10; --surface:#131318; --surface-2:#17171d;
+    --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#F4F4F5; --muted:#8a8a93; --muted-2:#61616a;
+    --red:#FF2E39; --red-2:#E11020; --red-glow:rgba(255,46,57,.55); --white:#fff;
+    --maxw:1180px; --ease:cubic-bezier(.22,1,.36,1);
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:'Outfit',system-ui,sans-serif;
-    font-weight:400;
-    line-height:1.6;
-    -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
-    position:relative;
-  }
-  /* background glows + grain */
+  body{background:var(--bg);color:var(--text);font-family:'Outfit',system-ui,sans-serif;line-height:1.6;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;position:relative}
   .bg-fx{position:fixed;inset:0;z-index:0;pointer-events:none}
-  .glow{position:absolute;border-radius:50%;filter:blur(120px);opacity:.5}
-  .glow.a{width:520px;height:520px;background:radial-gradient(circle,var(--red-2),transparent 70%);top:-160px;right:-120px;opacity:.35}
-  .glow.b{width:600px;height:600px;background:radial-gradient(circle,#3a0308,transparent 70%);bottom:-200px;left:-160px;opacity:.6}
+  .glow{position:absolute;border-radius:50%;filter:blur(120px)}
+  .glow.a{width:520px;height:520px;background:radial-gradient(circle,var(--red-2),transparent 70%);top:-160px;right:-120px;opacity:.32}
+  .glow.b{width:600px;height:600px;background:radial-gradient(circle,#3a0308,transparent 70%);bottom:-200px;left:-160px;opacity:.55}
   .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.045;mix-blend-mode:overlay;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
   .cursor{position:fixed;top:0;left:0;width:380px;height:380px;border-radius:50%;z-index:1;pointer-events:none;
     background:radial-gradient(circle,var(--red-glow),transparent 62%);opacity:0;transform:translate(-50%,-50%);
     transition:opacity .4s var(--ease);mix-blend-mode:screen}
-
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;position:relative;z-index:2}
 
   /* NAV */
@@ -62,90 +42,99 @@
   .nav-tag{font-size:12.5px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;font-weight:500}
 
   /* HERO */
-  .hero{padding:110px 0 70px;position:relative}
-  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12.5px;letter-spacing:.22em;text-transform:uppercase;
-    color:var(--muted);font-weight:500;margin-bottom:30px}
+  .hero{padding:104px 0 60px}
+  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:30px}
   .eyebrow .ln{width:34px;height:1px;background:var(--red)}
-  .hero h1{font-family:'Poppins';font-weight:900;letter-spacing:-.035em;line-height:.94;
-    font-size:clamp(52px,9vw,132px);text-transform:uppercase}
+  .hero h1{font-family:'Poppins';font-weight:900;letter-spacing:-.035em;line-height:.94;font-size:clamp(52px,9vw,132px);text-transform:uppercase}
   .hero h1 .out{-webkit-text-stroke:1.5px var(--line-2);color:transparent;display:block}
   .hero h1 .red{color:var(--red);display:block;text-shadow:0 0 60px rgba(255,46,57,.35)}
   .hero-sub{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-end;justify-content:space-between;margin-top:44px}
   .hero-sub p{max-width:520px;color:var(--muted);font-size:17px;line-height:1.65}
   .hero-meta{display:flex;gap:34px;flex-wrap:wrap}
-  .hero-meta .m span{display:block}
-  .hero-meta .m .k{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2)}
-  .hero-meta .m .v{font-family:'Poppins';font-weight:700;font-size:20px;margin-top:4px}
+  .hero-meta .m .k{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2);display:block}
+  .hero-meta .m .v{font-family:'Poppins';font-weight:700;font-size:20px;margin-top:4px;display:block}
   .hero-meta .m .v.r{color:var(--red)}
 
-  /* marquee */
-  .marquee{margin:64px 0 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;padding:16px 0}
+  .marquee{margin:60px 0 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;padding:16px 0}
   .marquee-track{display:flex;gap:44px;white-space:nowrap;width:max-content;animation:scroll 26s linear infinite}
   .marquee span{font-family:'Poppins';font-weight:800;font-size:22px;letter-spacing:-.01em;text-transform:uppercase;color:var(--muted-2);display:inline-flex;align-items:center;gap:44px}
   .marquee span::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--red)}
   @keyframes scroll{to{transform:translateX(-50%)}}
 
-  /* LAYOUT: index + list */
-  .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:20px;margin:90px 0 8px;flex-wrap:wrap}
-  .section-head h2{font-family:'Poppins';font-weight:800;letter-spacing:-.02em;font-size:clamp(26px,3.4vw,40px)}
-  .section-head .count{color:var(--muted);font-size:14px;letter-spacing:.1em}
-  .grid{display:grid;grid-template-columns:220px 1fr;gap:48px;margin-top:40px;align-items:start}
+  /* WEEK / DATE HEADER */
+  .week{padding-top:92px}
+  .week-head{display:flex;flex-direction:column;gap:14px;border-left:2px solid var(--red);padding-left:26px;margin-bottom:8px;position:relative}
+  .week-head::before{content:"";position:absolute;left:-6px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 16px var(--red-glow)}
+  .week-tag{font-family:'Poppins';font-weight:600;font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--red)}
+  .week-title{font-family:'Poppins';font-weight:900;letter-spacing:-.03em;font-size:clamp(34px,5vw,64px);line-height:1;text-transform:uppercase}
+  .week-note{color:var(--muted);max-width:560px;font-size:15.5px;margin-top:2px}
+  .week-stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+  .week-stats .s{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:100px;padding:7px 14px}
+  .week-stats .s b{color:var(--text);font-weight:600}
+
+  /* LAYOUT */
+  .grid{display:grid;grid-template-columns:220px 1fr;gap:48px;margin-top:44px;align-items:start}
   .index{position:sticky;top:96px;display:flex;flex-direction:column;gap:4px}
-  .index a{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:var(--muted);
-    text-decoration:none;font-size:14.5px;transition:.28s var(--ease);border:1px solid transparent}
+  .index a{position:relative;display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:var(--muted);text-decoration:none;font-size:14.5px;transition:.28s var(--ease);border:1px solid transparent}
   .index a .n{font-family:'Poppins';font-weight:700;font-size:12px;color:var(--muted-2);width:22px}
   .index a:hover{color:var(--text);background:var(--surface)}
-  .index a.active{color:var(--text);background:var(--surface);border-color:var(--line);}
+  .index a.active{color:var(--text);background:var(--surface);border-color:var(--line)}
   .index a.active .n{color:var(--red)}
-  .index a.active::before{content:"";position:absolute;left:0;width:3px;height:20px;background:var(--red);border-radius:3px;transform:translateX(-13px);box-shadow:0 0 12px var(--red-glow)}
-  .index a{position:relative}
+  .index a.active::before{content:"";position:absolute;left:-13px;width:3px;height:20px;background:var(--red);border-radius:3px;box-shadow:0 0 12px var(--red-glow)}
 
   .cards{display:flex;flex-direction:column;gap:22px}
   .card{position:relative;background:linear-gradient(180deg,var(--surface),var(--bg-2));border:1px solid var(--line);
-    border-radius:22px;padding:36px 36px 34px;overflow:hidden;opacity:0;transform:translateY(28px);
+    border-radius:22px;padding:36px 38px 34px;overflow:hidden;opacity:0;transform:translateY(28px);
     transition:opacity .7s var(--ease),transform .7s var(--ease),border-color .4s,box-shadow .4s}
   .card.in{opacity:1;transform:none}
   .card:hover{border-color:rgba(255,46,57,.4);box-shadow:0 30px 80px -40px rgba(255,46,57,.35)}
-  .card::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 200px at 90% -10%,rgba(255,46,57,.10),transparent 60%);opacity:0;transition:.5s var(--ease)}
+  .card::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 220px at 92% -10%,rgba(255,46,57,.10),transparent 60%);opacity:0;transition:.5s var(--ease)}
   .card:hover::before{opacity:1}
-  .card-num{position:absolute;top:20px;right:26px;font-family:'Poppins';font-weight:900;font-size:88px;line-height:1;
-    color:transparent;-webkit-text-stroke:1.4px var(--line-2);opacity:.5;pointer-events:none;letter-spacing:-.04em}
-  .card-top{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
-  .avatar{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-family:'Poppins';font-weight:800;
-    font-size:18px;background:linear-gradient(145deg,var(--red),var(--red-2));color:#fff;box-shadow:0 8px 24px -8px var(--red-glow)}
+  .card-num{position:absolute;top:20px;right:28px;font-family:'Poppins';font-weight:900;font-size:88px;line-height:1;color:transparent;-webkit-text-stroke:1.4px var(--line-2);opacity:.45;pointer-events:none;letter-spacing:-.04em}
+  .card-top{display:flex;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap;position:relative}
+  .avatar{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-family:'Poppins';font-weight:800;font-size:18px;background:linear-gradient(145deg,var(--red),var(--red-2));color:#fff;box-shadow:0 8px 24px -8px var(--red-glow)}
   .who .name{font-family:'Poppins';font-weight:700;font-size:19px;letter-spacing:-.01em}
   .who .role{font-size:13px;color:var(--muted);margin-top:1px}
-  .chip{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;padding:6px 12px;border-radius:100px;margin-left:auto}
-  .chip.heavy{background:rgba(255,46,57,.14);color:#ff6b73;border:1px solid rgba(255,46,57,.3)}
-  .chip.baby{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--line-2)}
-  .card h3{font-family:'Poppins';font-weight:700;font-size:clamp(23px,2.6vw,30px);letter-spacing:-.02em;margin-bottom:12px;position:relative}
-  .card .lede{color:var(--muted);font-size:15.5px;max-width:640px;margin-bottom:24px}
-  .card .body{color:#cfcfd4;font-size:15.5px;line-height:1.72;max-width:680px}
-  .card .body strong{color:var(--text);font-weight:600}
+  .chip.time{margin-left:auto;font-size:12px;letter-spacing:.04em;font-weight:500;padding:8px 14px;border-radius:100px;color:var(--text);background:rgba(255,255,255,.05);border:1px solid var(--line-2);display:inline-flex;gap:8px;align-items:center}
+  .chip.time svg{width:14px;height:14px;fill:var(--red)}
+  .card h3{font-family:'Poppins';font-weight:700;font-size:clamp(24px,2.6vw,31px);letter-spacing:-.02em;margin-bottom:10px;position:relative}
+  .card .lede{color:#cfcfd4;font-size:16px;max-width:660px;margin-bottom:26px}
 
-  .done{margin-top:22px;padding:16px 18px;border:1px dashed rgba(255,46,57,.35);border-radius:14px;
-    background:rgba(255,46,57,.04);display:flex;gap:12px;align-items:flex-start}
-  .done .lab{font-family:'Poppins';font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);white-space:nowrap;padding-top:2px}
-  .done p{font-size:14.5px;color:#d5d5da}
+  .detail{display:flex;flex-direction:column;gap:22px;border-top:1px solid var(--line);padding-top:26px}
+  .block{display:grid;grid-template-columns:150px 1fr;gap:22px;align-items:start}
+  .block-label{font-family:'Poppins';font-weight:600;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);padding-top:3px}
+  .block p{color:#c9c9cf;font-size:15px;line-height:1.72;max-width:640px}
+  .block p strong{color:var(--text);font-weight:600}
+  .checklist{list-style:none;display:flex;flex-direction:column;gap:11px}
+  .checklist li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:#c9c9cf;line-height:1.55}
+  .checklist li .cbx{flex:none;width:17px;height:17px;border-radius:5px;border:1.5px solid var(--line-2);margin-top:2px;position:relative}
+  .checklist li .cbx::after{content:"";position:absolute;inset:3px;border-radius:2px;background:var(--red);opacity:.85}
+  .checklist li strong{color:var(--text);font-weight:600}
 
-  .meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+  .done{margin-top:26px;padding:18px 20px;border:1px dashed rgba(255,46,57,.35);border-radius:14px;background:rgba(255,46,57,.04);display:grid;grid-template-columns:150px 1fr;gap:22px;align-items:start}
+  .done .lab{font-family:'Poppins';font-weight:700;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);padding-top:2px}
+  .done p{font-size:14.5px;color:#d8d8dd;line-height:1.6}
+  .done code{font-family:ui-monospace,monospace;background:rgba(255,255,255,.07);padding:1px 6px;border-radius:5px;font-size:13px}
+
+  .meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
   .pill{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:100px;padding:7px 14px;display:inline-flex;gap:8px;align-items:center}
   .pill b{color:var(--text);font-weight:600}
-  .pill.est b{color:var(--red)}
 
-  /* ground rules band */
-  .rules{margin-top:96px;border:1px solid var(--line);border-radius:22px;padding:40px;background:
-    radial-gradient(700px 300px at 100% 0,rgba(255,46,57,.07),transparent 60%),var(--surface)}
+  /* upcoming placeholder */
+  .upcoming{margin-top:30px;display:flex;align-items:center;gap:20px;border:1px dashed var(--line-2);border-radius:20px;padding:26px 30px;opacity:.72}
+  .upcoming .ud{font-family:'Poppins';font-weight:800;font-size:22px;letter-spacing:-.02em;color:var(--muted)}
+  .upcoming .ul{font-size:14px;color:var(--muted-2);letter-spacing:.04em}
+  .upcoming .dots{margin-left:auto;display:flex;gap:6px}
+  .upcoming .dots i{width:7px;height:7px;border-radius:50%;background:var(--line-2)}
+
+  /* ground rules + whatsapp */
+  .rules{margin-top:70px;border:1px solid var(--line);border-radius:22px;padding:40px;background:radial-gradient(700px 300px at 100% 0,rgba(255,46,57,.07),transparent 60%),var(--surface)}
   .rules h4{font-family:'Poppins';font-weight:700;font-size:22px;letter-spacing:-.01em;margin-bottom:8px}
   .rules p{color:var(--muted);max-width:640px;font-size:15px}
   .rules ul{list-style:none;margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:14px 34px}
   .rules li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:#cfcfd4}
   .rules li .tick{color:var(--red);font-weight:800;font-family:'Poppins'}
-
-  /* whatsapp callout */
-  .wa{margin-top:22px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:space-between;
-    border:1px solid rgba(255,46,57,.3);border-radius:22px;padding:30px 34px;
-    background:linear-gradient(120deg,rgba(255,46,57,.1),rgba(255,46,57,.02))}
+  .wa{margin-top:22px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:space-between;border:1px solid rgba(255,46,57,.3);border-radius:22px;padding:30px 34px;background:linear-gradient(120deg,rgba(255,46,57,.1),rgba(255,46,57,.02))}
   .wa .txt{display:flex;gap:18px;align-items:center}
   .wa .ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:rgba(255,46,57,.16);border:1px solid rgba(255,46,57,.35);flex:none}
   .wa .ic svg{width:26px;height:26px;fill:var(--red)}
@@ -153,7 +142,7 @@
   .wa p{color:var(--muted);font-size:14.5px;max-width:520px}
   .wa .badge{font-family:'Poppins';font-weight:600;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);border:1px solid rgba(255,46,57,.4);border-radius:100px;padding:9px 16px;white-space:nowrap}
 
-  footer{margin-top:100px;border-top:1px solid var(--line);padding:38px 0 60px}
+  footer{margin-top:96px;border-top:1px solid var(--line);padding:38px 0 60px}
   .foot-in{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
   footer .brand{font-size:15px}
   footer small{color:var(--muted-2);font-size:13px}
@@ -161,18 +150,15 @@
   @media(max-width:860px){
     .grid{grid-template-columns:1fr;gap:20px}
     .index{position:static;flex-direction:row;flex-wrap:wrap;gap:8px;margin-bottom:8px}
-    .index a{padding:9px 13px}
     .index a.active::before{display:none}
     .rules ul{grid-template-columns:1fr}
     .card-num{font-size:64px;top:16px;right:20px}
     .card{padding:28px 24px}
+    .block,.done{grid-template-columns:1fr;gap:10px}
     .hero{padding:72px 0 40px}
+    .week{padding-top:64px}
   }
-  @media(max-width:520px){
-    .wrap{padding:0 18px}
-    .chip{margin-left:0}
-    .hero-meta{gap:22px}
-  }
+  @media(max-width:520px){.wrap{padding:0 18px}.chip.time{margin-left:0}.hero-meta{gap:22px}}
 </style>
 </head>
 <body>
@@ -183,38 +169,41 @@
 <header class="nav">
   <div class="wrap nav-in">
     <div class="brand"><span class="dot"></span>Study Studio <small>/ interns</small></div>
-    <div class="nav-tag">Week of 01 Aug 2026</div>
+    <div class="nav-tag">Assignment Board</div>
   </div>
 </header>
 
 <main>
   <!-- HERO -->
   <section class="hero wrap">
-    <span class="eyebrow"><span class="ln"></span>Weekly Assignment Board</span>
+    <span class="eyebrow"><span class="ln"></span>Study Studio · Engineering Internship</span>
     <h1><span class="out">Build.</span><span class="red">Ship.</span><span class="out">Repeat.</span></h1>
     <div class="hero-sub">
-      <p>This week's missions for the Study Studio engineering interns. Each task is a self-contained module — pick it up, own it end to end, and ship something real.</p>
+      <p>Your assignment board. Every week a new set of missions lands here — each one a self-contained module you own end to end, from first commit to a working, tested deliverable.</p>
       <div class="hero-meta">
-        <div class="m"><span class="k">Interns</span><span class="v">05</span></div>
-        <div class="m"><span class="k">Assigned</span><span class="v">01 Aug</span></div>
-        <div class="m"><span class="k">Due</span><span class="v r">08 Aug</span></div>
+        <div class="m"><span class="k">Team</span><span class="v">05</span></div>
+        <div class="m"><span class="k">Current</span><span class="v">Assignment 01</span></div>
+        <div class="m"><span class="k">Cadence</span><span class="v r">Weekly</span></div>
       </div>
     </div>
   </section>
 
-  <!-- marquee -->
-  <div class="marquee">
-    <div class="marquee-track">
-      <span>Test Coverage</span><span>Text Extraction</span><span>Semantic Grading</span><span>API Smoke Tests</span><span>Sample Data</span>
-      <span>Test Coverage</span><span>Text Extraction</span><span>Semantic Grading</span><span>API Smoke Tests</span><span>Sample Data</span>
-    </div>
-  </div>
+  <div class="marquee"><div class="marquee-track">
+    <span>Test Coverage</span><span>Text Extraction</span><span>Semantic Grading</span><span>API Reliability</span><span>Test Data</span>
+    <span>Test Coverage</span><span>Text Extraction</span><span>Semantic Grading</span><span>API Reliability</span><span>Test Data</span>
+  </div></div>
 
-  <!-- ASSIGNMENTS -->
-  <section class="wrap">
-    <div class="section-head">
-      <h2>The Assignments</h2>
-      <span class="count">05 tasks · 3 heavy · 2 baby</span>
+  <!-- ===================== ASSIGNMENT 01 · 01 AUG 2026 ===================== -->
+  <section class="week wrap">
+    <div class="week-head">
+      <span class="week-tag">Assignment 01</span>
+      <h1 class="week-title">01 August 2026</h1>
+      <p class="week-note">This week's tasks. Kick off Monday, deliverables due by the end of the week.</p>
+      <div class="week-stats">
+        <span class="s"><b>5</b> tasks</span>
+        <span class="s"><b>1</b> per person</span>
+        <span class="s">Due <b>08 Aug 2026</b></span>
+      </div>
     </div>
 
     <div class="grid">
@@ -234,21 +223,28 @@
           <div class="card-top">
             <div class="avatar">S</div>
             <div class="who"><div class="name">Sean</div><div class="role">Quality &amp; Test Engineering</div></div>
-            <span class="chip heavy">Heavy</span>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>3 days</span>
           </div>
           <h3>Flutter Test Suite</h3>
-          <p class="lede">Harden the app with a real automated test layer so features can't silently break.</p>
-          <div class="body">
-            Write <strong>widget + golden tests</strong> for the six core screens — Home, Dashboard, Quiz Me,
-            Flashcards, Teach Me and Mastery Report — using the in-memory repository and mock data. Cover every
-            state each screen can be in: <strong>loading, empty, error and data</strong>. Add <strong>unit tests</strong>
-            for the domain logic (mastery calculation, weak-topic selection, DTO mappers).
+          <p class="lede">Build the safety net. As the team ships features fast, an automated test layer is what stops regressions from slipping into the app unnoticed.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Overview</span><p>The app has grown to many screens with almost no automated coverage. Your job is a fast, deterministic test suite that runs entirely against the <strong>in-memory repository and mock data</strong> — no backend, no network — so it's reliable in CI and quick to run locally.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p><strong>Widget + golden tests</strong> for the six core screens, plus <strong>unit tests</strong> for the pure domain logic. Each screen test drives the UI through its real states and asserts what the user sees.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>Set up the test harness: <strong>ProviderScope overrides</strong> + shared mock studios.</span></li>
+                <li><span class="cbx"></span><span>Widget tests for <strong>Home, Dashboard, Quiz Me, Flashcards, Teach Me, Mastery Report</strong>.</span></li>
+                <li><span class="cbx"></span><span>For each screen, assert all four states — <strong>loading, empty, error, data</strong>.</span></li>
+                <li><span class="cbx"></span><span>Golden (snapshot) tests for at least <strong>3 visually rich screens</strong>.</span></li>
+                <li><span class="cbx"></span><span>Unit tests for <strong>mastery calculation, weak-topic selection, and the DTO mappers</strong>.</span></li>
+                <li><span class="cbx"></span><span>A README covering how to run the suite and add new tests.</span></li>
+              </ul>
+            </div>
           </div>
-          <div class="done"><span class="lab">Done when</span><p><code>flutter test</code> passes, all six screens are covered, and a short README documents how to run it.</p></div>
+          <div class="done"><span class="lab">Done when</span><p><code>flutter test</code> passes locally, all six screens plus the three domain areas are covered, and the README documents the workflow.</p></div>
           <div class="meta-row">
-            <span class="pill est">Estimate <b>3 days</b></span>
             <span class="pill">Stack <b>Flutter · flutter_test · golden</b></span>
-            <span class="pill">Output <b>additive — no app code changes</b></span>
+            <span class="pill">Output <b>additive — no app-code changes</b></span>
           </div>
         </article>
 
@@ -258,20 +254,26 @@
           <div class="card-top">
             <div class="avatar">A</div>
             <div class="who"><div class="name">Amirjon</div><div class="role">Backend · Data Pipeline</div></div>
-            <span class="chip heavy">Heavy</span>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>2–2.5 days</span>
           </div>
           <h3>Text-Extraction Module</h3>
-          <p class="lede">Turn real documents into clean, study-ready text for the ingestion pipeline.</p>
-          <div class="body">
-            Build a <strong>standalone module</strong> (your own folder) that converts raw file bytes into clean text
-            using <strong>pypdf, python-docx and python-pptx</strong>. Strip headers, footers and noise, handle page
-            boundaries, and return chunking-ready text. Match the integration signature
-            <strong>extract_text(filename, mime, data) → str</strong> so it drops straight in. Ship unit tests with
-            sample files plus a tiny FastAPI demo endpoint.
+          <p class="lede">Unlock real documents. Today the pipeline only reads plain text — your module lets it understand PDFs, Word docs and slide decks.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Overview</span><p>Real users upload PDFs, DOCX and PPTX, but the ingestion pipeline currently only accepts <strong>.txt / .md</strong>. You'll build the missing extractor as a clean, isolated module the lead can drop straight in.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p>A standalone Python module (your own folder) that takes <strong>file bytes + filename + mime</strong> and returns clean, chunking-ready text. Wrap it with a thin FastAPI demo endpoint so it can be tested on its own.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span><strong>PDF</strong> via pypdf · <strong>DOCX</strong> via python-docx · <strong>PPTX</strong> via python-pptx.</span></li>
+                <li><span class="cbx"></span><span>Detect format from mime/extension and dispatch to the right extractor.</span></li>
+                <li><span class="cbx"></span><span>Clean output: collapse whitespace, drop repeated headers/footers/page numbers, keep paragraph breaks.</span></li>
+                <li><span class="cbx"></span><span>Fail gracefully on unsupported / corrupt files (clear error, no crash).</span></li>
+                <li><span class="cbx"></span><span>Match the contract exactly: <strong>extract_text(filename, mime, data) → str</strong>.</span></li>
+                <li><span class="cbx"></span><span>Unit tests with small sample files + a <strong>POST /extract</strong> demo endpoint.</span></li>
+              </ul>
+            </div>
           </div>
-          <div class="done"><span class="lab">Done when</span><p>Tests pass for PDF, DOCX and PPTX, the signature matches, and a README explains usage.</p></div>
+          <div class="done"><span class="lab">Done when</span><p>Tests pass for PDF, DOCX and PPTX, the function signature matches exactly, and a README explains usage and integration.</p></div>
           <div class="meta-row">
-            <span class="pill est">Estimate <b>2–2.5 days</b></span>
             <span class="pill">Stack <b>Python · pypdf · docx · pptx · FastAPI</b></span>
             <span class="pill">Output <b>isolated module</b></span>
           </div>
@@ -283,20 +285,26 @@
           <div class="card-top">
             <div class="avatar">C</div>
             <div class="who"><div class="name">Chris</div><div class="role">Backend · ML Services</div></div>
-            <span class="chip heavy">Heavy</span>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>2.5–3 days</span>
           </div>
           <h3>Semantic Grading Microservice</h3>
-          <p class="lede">Grade short and open answers by <em>meaning</em>, not exact string match.</p>
-          <div class="body">
-            Build a <strong>standalone FastAPI service</strong>:
-            <strong>POST /grade { question, studentAnswer, correctAnswer } → { correct, score 0–1, feedback }</strong>.
-            Use <strong>local embedding similarity</strong> (sentence-transformers, no external key) for
-            short-answer and fill-in-the-blank grading. Tune thresholds, write tests, document the contract.
-            Stretch goal: an optional LLM-judge fallback.
+          <p class="lede">Grade by meaning, not spelling. "H₂O" and "water" should both be right — build the service that understands that.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Overview</span><p>Short-answer and fill-in-the-blank questions are graded today by <strong>exact string match</strong>, so correct-but-worded-differently answers are marked wrong. You'll replace that with semantic scoring.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p>A standalone FastAPI microservice that scores a student's free-text answer against the correct answer using <strong>local embedding similarity</strong> — no external API key required.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>Endpoint: <strong>POST /grade { question, studentAnswer, correctAnswer }</strong> → <strong>{ correct, score 0–1, feedback }</strong>.</span></li>
+                <li><span class="cbx"></span><span>Use <strong>sentence-transformers</strong> embeddings + cosine similarity.</span></li>
+                <li><span class="cbx"></span><span>Choose and justify a correctness threshold; handle empty / near-empty answers.</span></li>
+                <li><span class="cbx"></span><span>Return short human feedback (e.g. "Close — you missed the mechanism").</span></li>
+                <li><span class="cbx"></span><span>Tests over a labeled set — correct / partial / wrong — asserting expected verdicts.</span></li>
+                <li><span class="cbx"></span><span><em>Stretch:</em> optional LLM-judge fallback behind a flag.</span></li>
+              </ul>
+            </div>
           </div>
-          <div class="done"><span class="lab">Done when</span><p>The service runs locally, returns sensible grades on a test set, and the request/response contract is documented.</p></div>
+          <div class="done"><span class="lab">Done when</span><p>The service runs locally, returns sensible grades across the test set, and the request/response contract is documented.</p></div>
           <div class="meta-row">
-            <span class="pill est">Estimate <b>2.5–3 days</b></span>
             <span class="pill">Stack <b>Python · FastAPI · sentence-transformers</b></span>
             <span class="pill">Output <b>own microservice</b></span>
           </div>
@@ -307,19 +315,26 @@
           <div class="card-num">04</div>
           <div class="card-top">
             <div class="avatar">S</div>
-            <div class="who"><div class="name">Shahaiar</div><div class="role">Backend · QA</div></div>
-            <span class="chip baby">Starter</span>
+            <div class="who"><div class="name">Shahaiar</div><div class="role">Backend · Reliability</div></div>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>1.5–2 days</span>
           </div>
           <h3>API Smoke-Test Script</h3>
-          <p class="lede">A fast, repeatable health check across the API surface.</p>
-          <div class="body">
-            Write a <strong>Python + httpx</strong> script that hits the public and a few authenticated endpoints,
-            asserts <strong>status codes and key response fields</strong>, and prints a clean pass/fail report.
-            Keep it runnable in CI. Endpoint URLs and the auth token are provided privately (see below).
+          <p class="lede">Catch breakage in seconds. A single command that tells us the live API is healthy after every deploy.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Overview</span><p>After each deploy we need a quick, automated confidence check across the API surface. You'll build the smoke test that gates it — green means safe, red means stop.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p>A <strong>Python + httpx</strong> script that hits a set of endpoints, validates their responses, prints a clean pass/fail report, and <strong>exits non-zero on any failure</strong> so it can run in CI.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>Check public endpoints first (health / readiness), then a few authenticated ones.</span></li>
+                <li><span class="cbx"></span><span>Assert <strong>status codes</strong> and the presence/shape of <strong>key response fields</strong>.</span></li>
+                <li><span class="cbx"></span><span>Handle the <strong>streaming (SSE)</strong> response format where it applies.</span></li>
+                <li><span class="cbx"></span><span>Clear console report with a summary line — <strong>X passed / Y failed</strong>.</span></li>
+                <li><span class="cbx"></span><span>Read base URL + token from <strong>env vars</strong> (provided privately — never hard-coded).</span></li>
+              </ul>
+            </div>
           </div>
-          <div class="done"><span class="lab">Done when</span><p>The script reports pass/fail for every target endpoint and exits non-zero on failure.</p></div>
+          <div class="done"><span class="lab">Done when</span><p>The script reports pass/fail for every target endpoint and exits non-zero on failure, ready to drop into CI.</p></div>
           <div class="meta-row">
-            <span class="pill est">Estimate <b>1–1.5 days</b></span>
             <span class="pill">Stack <b>Python · httpx</b></span>
             <span class="pill">Output <b>own script</b></span>
           </div>
@@ -331,18 +346,25 @@
           <div class="card-top">
             <div class="avatar">A</div>
             <div class="who"><div class="name">Anagha</div><div class="role">Backend · Test Data</div></div>
-            <span class="chip baby">Starter</span>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>1.5 days</span>
           </div>
           <h3>Sample Materials Generator</h3>
-          <p class="lede">Create realistic study documents to exercise the ingestion pipeline.</p>
-          <div class="body">
-            Write a <strong>Python script</strong> that generates varied sample study documents
-            (<strong>.txt / .md</strong>) across subjects — Biology, History, Networking and more — and across sizes,
-            from a short note to a long chapter. These become the fixtures the team uses to test uploads end to end.
+          <p class="lede">Feed the pipeline. Realistic study documents, on demand, so the whole team can test uploads end to end.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Overview</span><p>To test uploads and content generation properly, the team needs believable study material across subjects and lengths. You'll build a generator that produces it on demand — the fixtures everyone else tests against.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p>A Python <strong>CLI script</strong> that outputs varied sample study documents in <strong>.txt and .md</strong>, structured like real notes — titles, sections, key terms and examples.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>Multiple subjects — <strong>Biology, History, Networking, Economics…</strong> (a template set each).</span></li>
+                <li><span class="cbx"></span><span>Multiple sizes — from a <strong>short one-page note</strong> to a <strong>long multi-section chapter</strong>.</span></li>
+                <li><span class="cbx"></span><span>Realistic structure: headings, lists, definitions, worked examples.</span></li>
+                <li><span class="cbx"></span><span>CLI flags: <strong>--count, --subject, --size, --out</strong>.</span></li>
+                <li><span class="cbx"></span><span>Short README with example commands.</span></li>
+              </ul>
+            </div>
           </div>
-          <div class="done"><span class="lab">Done when</span><p>Running the script outputs a folder of ready-to-use sample files across subjects and lengths.</p></div>
+          <div class="done"><span class="lab">Done when</span><p>Running the CLI outputs a folder of varied, realistic sample files across subjects and lengths, ready to upload.</p></div>
           <div class="meta-row">
-            <span class="pill est">Estimate <b>1 day</b></span>
             <span class="pill">Stack <b>Python</b></span>
             <span class="pill">Output <b>own script · no credentials needed</b></span>
           </div>
@@ -351,7 +373,18 @@
       </div>
     </div>
 
-    <!-- GROUND RULES -->
+    <!-- upcoming next week -->
+    <div class="upcoming">
+      <div>
+        <div class="ud">08 August 2026</div>
+        <div class="ul">Assignment 02 — new tasks drop next week</div>
+      </div>
+      <div class="dots"><i></i><i></i><i></i></div>
+    </div>
+  </section>
+
+  <!-- GROUND RULES -->
+  <section class="wrap">
     <div class="rules">
       <h4>Ground rules</h4>
       <p>Every task is a self-contained deliverable. You build the isolated piece — the lead integrates it into the main system.</p>
@@ -365,12 +398,9 @@
       </ul>
     </div>
 
-    <!-- WHATSAPP CALLOUT (no secrets on the page) -->
     <div class="wa">
       <div class="txt">
-        <div class="ic">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.9c0 2.1.55 4.15 1.6 5.96L2 22l4.25-1.68a9.9 9.9 0 0 0 5.79 1.85h.01c5.46 0 9.9-4.45 9.9-9.9 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-2.52 1 .67-2.46-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.23 8.24-8.23a8.2 8.2 0 0 1 8.23 8.24c0 4.54-3.7 8.23-8.23 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.8-.23-.09-.39-.13-.56.12-.16.25-.64.8-.79.97-.14.16-.29.18-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.13-.15.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.4-.42-.56-.43h-.48c-.16 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29Z"/></svg>
-        </div>
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.9c0 2.1.55 4.15 1.6 5.96L2 22l4.25-1.68a9.9 9.9 0 0 0 5.79 1.85h.01c5.46 0 9.9-4.45 9.9-9.9 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-2.52 1 .67-2.46-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.23 8.24-8.23a8.2 8.2 0 0 1 8.23 8.24c0 4.54-3.7 8.23-8.23 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.8-.23-.09-.39-.13-.56.12-.16.25-.64.8-.79.97-.14.16-.29.18-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.13-.15.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.4-.42-.56-.43h-.48c-.16 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29Z"/></svg></div>
         <div>
           <h5>Access details are shared via WhatsApp</h5>
           <p>Database connection, Firebase config and the backend API base URL are <strong>not published here</strong>. The lead sends them to you privately on WhatsApp.</p>
@@ -389,39 +419,18 @@
 </footer>
 
 <script>
-  // year
   document.getElementById('yr').textContent = new Date().getFullYear();
-
-  // cursor glow (desktop / fine pointer only)
   var cursor = document.getElementById('cursor');
   if (window.matchMedia('(pointer:fine)').matches){
-    window.addEventListener('pointermove', function(e){
-      cursor.style.opacity = 1;
-      cursor.style.left = e.clientX + 'px';
-      cursor.style.top = e.clientY + 'px';
-    });
-    window.addEventListener('pointerleave', function(){ cursor.style.opacity = 0; });
+    window.addEventListener('pointermove', function(e){ cursor.style.opacity=1; cursor.style.left=e.clientX+'px'; cursor.style.top=e.clientY+'px'; });
+    window.addEventListener('pointerleave', function(){ cursor.style.opacity=0; });
   }
-
-  // reveal on scroll
   var cards = document.querySelectorAll('.card');
-  var revIO = new IntersectionObserver(function(entries){
-    entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); revIO.unobserve(en.target);} });
-  }, {threshold:.16});
+  var revIO = new IntersectionObserver(function(es){ es.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); revIO.unobserve(en.target);} }); }, {threshold:.14});
   cards.forEach(function(c){ revIO.observe(c); });
-
-  // active index highlight
-  var links = document.querySelectorAll('.index a');
-  var map = {};
-  links.forEach(function(l){ map[l.dataset.target] = l; });
-  var actIO = new IntersectionObserver(function(entries){
-    entries.forEach(function(en){
-      if(en.isIntersecting){
-        links.forEach(function(l){ l.classList.remove('active'); });
-        var a = map[en.target.id]; if(a) a.classList.add('active');
-      }
-    });
-  }, {rootMargin:'-45% 0px -50% 0px', threshold:0});
+  var links = document.querySelectorAll('.index a'), map = {};
+  links.forEach(function(l){ map[l.dataset.target]=l; });
+  var actIO = new IntersectionObserver(function(es){ es.forEach(function(en){ if(en.isIntersecting){ links.forEach(function(l){l.classList.remove('active');}); var a=map[en.target.id]; if(a)a.classList.add('active'); } }); }, {rootMargin:'-45% 0px -50% 0px', threshold:0});
   cards.forEach(function(c){ actIO.observe(c); });
 </script>
 </body>
