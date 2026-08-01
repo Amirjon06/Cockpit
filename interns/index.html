@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Study Studio — Intern Assignments</title>
+<meta name="description" content="Weekly intern assignments for the Study Studio team — tasks, deliverables, and acceptance criteria." />
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Poppins:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#080809;
+    --bg-2:#0d0d10;
+    --surface:#131318;
+    --surface-2:#17171d;
+    --line:rgba(255,255,255,.08);
+    --line-2:rgba(255,255,255,.14);
+    --text:#F4F4F5;
+    --muted:#8a8a93;
+    --muted-2:#61616a;
+    --red:#FF2E39;
+    --red-2:#E11020;
+    --red-glow:rgba(255,46,57,.55);
+    --white:#ffffff;
+    --maxw:1180px;
+    --ease:cubic-bezier(.22,1,.36,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Outfit',system-ui,sans-serif;
+    font-weight:400;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    position:relative;
+  }
+  /* background glows + grain */
+  .bg-fx{position:fixed;inset:0;z-index:0;pointer-events:none}
+  .glow{position:absolute;border-radius:50%;filter:blur(120px);opacity:.5}
+  .glow.a{width:520px;height:520px;background:radial-gradient(circle,var(--red-2),transparent 70%);top:-160px;right:-120px;opacity:.35}
+  .glow.b{width:600px;height:600px;background:radial-gradient(circle,#3a0308,transparent 70%);bottom:-200px;left:-160px;opacity:.6}
+  .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.045;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .cursor{position:fixed;top:0;left:0;width:380px;height:380px;border-radius:50%;z-index:1;pointer-events:none;
+    background:radial-gradient(circle,var(--red-glow),transparent 62%);opacity:0;transform:translate(-50%,-50%);
+    transition:opacity .4s var(--ease);mix-blend-mode:screen}
+
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;position:relative;z-index:2}
+
+  /* NAV */
+  header.nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);
+    background:linear-gradient(to bottom,rgba(8,8,9,.9),rgba(8,8,9,.55));border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:68px}
+  .brand{display:flex;align-items:center;gap:11px;font-family:'Poppins';font-weight:700;letter-spacing:-.02em;font-size:16px}
+  .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--red);box-shadow:0 0 16px var(--red-glow)}
+  .brand small{color:var(--muted);font-weight:500;font-family:'Outfit'}
+  .nav-tag{font-size:12.5px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;font-weight:500}
+
+  /* HERO */
+  .hero{padding:110px 0 70px;position:relative}
+  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12.5px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--muted);font-weight:500;margin-bottom:30px}
+  .eyebrow .ln{width:34px;height:1px;background:var(--red)}
+  .hero h1{font-family:'Poppins';font-weight:900;letter-spacing:-.035em;line-height:.94;
+    font-size:clamp(52px,9vw,132px);text-transform:uppercase}
+  .hero h1 .out{-webkit-text-stroke:1.5px var(--line-2);color:transparent;display:block}
+  .hero h1 .red{color:var(--red);display:block;text-shadow:0 0 60px rgba(255,46,57,.35)}
+  .hero-sub{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-end;justify-content:space-between;margin-top:44px}
+  .hero-sub p{max-width:520px;color:var(--muted);font-size:17px;line-height:1.65}
+  .hero-meta{display:flex;gap:34px;flex-wrap:wrap}
+  .hero-meta .m span{display:block}
+  .hero-meta .m .k{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2)}
+  .hero-meta .m .v{font-family:'Poppins';font-weight:700;font-size:20px;margin-top:4px}
+  .hero-meta .m .v.r{color:var(--red)}
+
+  /* marquee */
+  .marquee{margin:64px 0 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;padding:16px 0}
+  .marquee-track{display:flex;gap:44px;white-space:nowrap;width:max-content;animation:scroll 26s linear infinite}
+  .marquee span{font-family:'Poppins';font-weight:800;font-size:22px;letter-spacing:-.01em;text-transform:uppercase;color:var(--muted-2);display:inline-flex;align-items:center;gap:44px}
+  .marquee span::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--red)}
+  @keyframes scroll{to{transform:translateX(-50%)}}
+
+  /* LAYOUT: index + list */
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:20px;margin:90px 0 8px;flex-wrap:wrap}
+  .section-head h2{font-family:'Poppins';font-weight:800;letter-spacing:-.02em;font-size:clamp(26px,3.4vw,40px)}
+  .section-head .count{color:var(--muted);font-size:14px;letter-spacing:.1em}
+  .grid{display:grid;grid-template-columns:220px 1fr;gap:48px;margin-top:40px;align-items:start}
+  .index{position:sticky;top:96px;display:flex;flex-direction:column;gap:4px}
+  .index a{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:var(--muted);
+    text-decoration:none;font-size:14.5px;transition:.28s var(--ease);border:1px solid transparent}
+  .index a .n{font-family:'Poppins';font-weight:700;font-size:12px;color:var(--muted-2);width:22px}
+  .index a:hover{color:var(--text);background:var(--surface)}
+  .index a.active{color:var(--text);background:var(--surface);border-color:var(--line);}
+  .index a.active .n{color:var(--red)}
+  .index a.active::before{content:"";position:absolute;left:0;width:3px;height:20px;background:var(--red);border-radius:3px;transform:translateX(-13px);box-shadow:0 0 12px var(--red-glow)}
+  .index a{position:relative}
+
+  .cards{display:flex;flex-direction:column;gap:22px}
+  .card{position:relative;background:linear-gradient(180deg,var(--surface),var(--bg-2));border:1px solid var(--line);
+    border-radius:22px;padding:36px 36px 34px;overflow:hidden;opacity:0;transform:translateY(28px);
+    transition:opacity .7s var(--ease),transform .7s var(--ease),border-color .4s,box-shadow .4s}
+  .card.in{opacity:1;transform:none}
+  .card:hover{border-color:rgba(255,46,57,.4);box-shadow:0 30px 80px -40px rgba(255,46,57,.35)}
+  .card::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 200px at 90% -10%,rgba(255,46,57,.10),transparent 60%);opacity:0;transition:.5s var(--ease)}
+  .card:hover::before{opacity:1}
+  .card-num{position:absolute;top:20px;right:26px;font-family:'Poppins';font-weight:900;font-size:88px;line-height:1;
+    color:transparent;-webkit-text-stroke:1.4px var(--line-2);opacity:.5;pointer-events:none;letter-spacing:-.04em}
+  .card-top{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+  .avatar{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-family:'Poppins';font-weight:800;
+    font-size:18px;background:linear-gradient(145deg,var(--red),var(--red-2));color:#fff;box-shadow:0 8px 24px -8px var(--red-glow)}
+  .who .name{font-family:'Poppins';font-weight:700;font-size:19px;letter-spacing:-.01em}
+  .who .role{font-size:13px;color:var(--muted);margin-top:1px}
+  .chip{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;padding:6px 12px;border-radius:100px;margin-left:auto}
+  .chip.heavy{background:rgba(255,46,57,.14);color:#ff6b73;border:1px solid rgba(255,46,57,.3)}
+  .chip.baby{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--line-2)}
+  .card h3{font-family:'Poppins';font-weight:700;font-size:clamp(23px,2.6vw,30px);letter-spacing:-.02em;margin-bottom:12px;position:relative}
+  .card .lede{color:var(--muted);font-size:15.5px;max-width:640px;margin-bottom:24px}
+  .card .body{color:#cfcfd4;font-size:15.5px;line-height:1.72;max-width:680px}
+  .card .body strong{color:var(--text);font-weight:600}
+
+  .done{margin-top:22px;padding:16px 18px;border:1px dashed rgba(255,46,57,.35);border-radius:14px;
+    background:rgba(255,46,57,.04);display:flex;gap:12px;align-items:flex-start}
+  .done .lab{font-family:'Poppins';font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);white-space:nowrap;padding-top:2px}
+  .done p{font-size:14.5px;color:#d5d5da}
+
+  .meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+  .pill{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:100px;padding:7px 14px;display:inline-flex;gap:8px;align-items:center}
+  .pill b{color:var(--text);font-weight:600}
+  .pill.est b{color:var(--red)}
+
+  /* ground rules band */
+  .rules{margin-top:96px;border:1px solid var(--line);border-radius:22px;padding:40px;background:
+    radial-gradient(700px 300px at 100% 0,rgba(255,46,57,.07),transparent 60%),var(--surface)}
+  .rules h4{font-family:'Poppins';font-weight:700;font-size:22px;letter-spacing:-.01em;margin-bottom:8px}
+  .rules p{color:var(--muted);max-width:640px;font-size:15px}
+  .rules ul{list-style:none;margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:14px 34px}
+  .rules li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:#cfcfd4}
+  .rules li .tick{color:var(--red);font-weight:800;font-family:'Poppins'}
+
+  /* whatsapp callout */
+  .wa{margin-top:22px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:space-between;
+    border:1px solid rgba(255,46,57,.3);border-radius:22px;padding:30px 34px;
+    background:linear-gradient(120deg,rgba(255,46,57,.1),rgba(255,46,57,.02))}
+  .wa .txt{display:flex;gap:18px;align-items:center}
+  .wa .ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:rgba(255,46,57,.16);border:1px solid rgba(255,46,57,.35);flex:none}
+  .wa .ic svg{width:26px;height:26px;fill:var(--red)}
+  .wa h5{font-family:'Poppins';font-weight:700;font-size:18px;letter-spacing:-.01em}
+  .wa p{color:var(--muted);font-size:14.5px;max-width:520px}
+  .wa .badge{font-family:'Poppins';font-weight:600;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);border:1px solid rgba(255,46,57,.4);border-radius:100px;padding:9px 16px;white-space:nowrap}
+
+  footer{margin-top:100px;border-top:1px solid var(--line);padding:38px 0 60px}
+  .foot-in{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
+  footer .brand{font-size:15px}
+  footer small{color:var(--muted-2);font-size:13px}
+
+  @media(max-width:860px){
+    .grid{grid-template-columns:1fr;gap:20px}
+    .index{position:static;flex-direction:row;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+    .index a{padding:9px 13px}
+    .index a.active::before{display:none}
+    .rules ul{grid-template-columns:1fr}
+    .card-num{font-size:64px;top:16px;right:20px}
+    .card{padding:28px 24px}
+    .hero{padding:72px 0 40px}
+  }
+  @media(max-width:520px){
+    .wrap{padding:0 18px}
+    .chip{margin-left:0}
+    .hero-meta{gap:22px}
+  }
+</style>
+</head>
+<body>
+<div class="bg-fx"><div class="glow a"></div><div class="glow b"></div></div>
+<div class="grain"></div>
+<div class="cursor" id="cursor"></div>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <div class="brand"><span class="dot"></span>Study Studio <small>/ interns</small></div>
+    <div class="nav-tag">Week of 01 Aug 2026</div>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero wrap">
+    <span class="eyebrow"><span class="ln"></span>Weekly Assignment Board</span>
+    <h1><span class="out">Build.</span><span class="red">Ship.</span><span class="out">Repeat.</span></h1>
+    <div class="hero-sub">
+      <p>This week's missions for the Study Studio engineering interns. Each task is a self-contained module — pick it up, own it end to end, and ship something real.</p>
+      <div class="hero-meta">
+        <div class="m"><span class="k">Interns</span><span class="v">05</span></div>
+        <div class="m"><span class="k">Assigned</span><span class="v">01 Aug</span></div>
+        <div class="m"><span class="k">Due</span><span class="v r">08 Aug</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- marquee -->
+  <div class="marquee">
+    <div class="marquee-track">
+      <span>Test Coverage</span><span>Text Extraction</span><span>Semantic Grading</span><span>API Smoke Tests</span><span>Sample Data</span>
+      <span>Test Coverage</span><span>Text Extraction</span><span>Semantic Grading</span><span>API Smoke Tests</span><span>Sample Data</span>
+    </div>
+  </div>
+
+  <!-- ASSIGNMENTS -->
+  <section class="wrap">
+    <div class="section-head">
+      <h2>The Assignments</h2>
+      <span class="count">05 tasks · 3 heavy · 2 baby</span>
+    </div>
+
+    <div class="grid">
+      <nav class="index" id="index">
+        <a href="#sean" data-target="sean"><span class="n">01</span> Sean</a>
+        <a href="#amirjon" data-target="amirjon"><span class="n">02</span> Amirjon</a>
+        <a href="#chris" data-target="chris"><span class="n">03</span> Chris</a>
+        <a href="#shahaiar" data-target="shahaiar"><span class="n">04</span> Shahaiar</a>
+        <a href="#anagha" data-target="anagha"><span class="n">05</span> Anagha</a>
+      </nav>
+
+      <div class="cards">
+
+        <!-- 1 SEAN -->
+        <article class="card" id="sean">
+          <div class="card-num">01</div>
+          <div class="card-top">
+            <div class="avatar">S</div>
+            <div class="who"><div class="name">Sean</div><div class="role">Quality &amp; Test Engineering</div></div>
+            <span class="chip heavy">Heavy</span>
+          </div>
+          <h3>Flutter Test Suite</h3>
+          <p class="lede">Harden the app with a real automated test layer so features can't silently break.</p>
+          <div class="body">
+            Write <strong>widget + golden tests</strong> for the six core screens — Home, Dashboard, Quiz Me,
+            Flashcards, Teach Me and Mastery Report — using the in-memory repository and mock data. Cover every
+            state each screen can be in: <strong>loading, empty, error and data</strong>. Add <strong>unit tests</strong>
+            for the domain logic (mastery calculation, weak-topic selection, DTO mappers).
+          </div>
+          <div class="done"><span class="lab">Done when</span><p><code>flutter test</code> passes, all six screens are covered, and a short README documents how to run it.</p></div>
+          <div class="meta-row">
+            <span class="pill est">Estimate <b>3 days</b></span>
+            <span class="pill">Stack <b>Flutter · flutter_test · golden</b></span>
+            <span class="pill">Output <b>additive — no app code changes</b></span>
+          </div>
+        </article>
+
+        <!-- 2 AMIRJON -->
+        <article class="card" id="amirjon">
+          <div class="card-num">02</div>
+          <div class="card-top">
+            <div class="avatar">A</div>
+            <div class="who"><div class="name">Amirjon</div><div class="role">Backend · Data Pipeline</div></div>
+            <span class="chip heavy">Heavy</span>
+          </div>
+          <h3>Text-Extraction Module</h3>
+          <p class="lede">Turn real documents into clean, study-ready text for the ingestion pipeline.</p>
+          <div class="body">
+            Build a <strong>standalone module</strong> (your own folder) that converts raw file bytes into clean text
+            using <strong>pypdf, python-docx and python-pptx</strong>. Strip headers, footers and noise, handle page
+            boundaries, and return chunking-ready text. Match the integration signature
+            <strong>extract_text(filename, mime, data) → str</strong> so it drops straight in. Ship unit tests with
+            sample files plus a tiny FastAPI demo endpoint.
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>Tests pass for PDF, DOCX and PPTX, the signature matches, and a README explains usage.</p></div>
+          <div class="meta-row">
+            <span class="pill est">Estimate <b>2–2.5 days</b></span>
+            <span class="pill">Stack <b>Python · pypdf · docx · pptx · FastAPI</b></span>
+            <span class="pill">Output <b>isolated module</b></span>
+          </div>
+        </article>
+
+        <!-- 3 CHRIS -->
+        <article class="card" id="chris">
+          <div class="card-num">03</div>
+          <div class="card-top">
+            <div class="avatar">C</div>
+            <div class="who"><div class="name">Chris</div><div class="role">Backend · ML Services</div></div>
+            <span class="chip heavy">Heavy</span>
+          </div>
+          <h3>Semantic Grading Microservice</h3>
+          <p class="lede">Grade short and open answers by <em>meaning</em>, not exact string match.</p>
+          <div class="body">
+            Build a <strong>standalone FastAPI service</strong>:
+            <strong>POST /grade { question, studentAnswer, correctAnswer } → { correct, score 0–1, feedback }</strong>.
+            Use <strong>local embedding similarity</strong> (sentence-transformers, no external key) for
+            short-answer and fill-in-the-blank grading. Tune thresholds, write tests, document the contract.
+            Stretch goal: an optional LLM-judge fallback.
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>The service runs locally, returns sensible grades on a test set, and the request/response contract is documented.</p></div>
+          <div class="meta-row">
+            <span class="pill est">Estimate <b>2.5–3 days</b></span>
+            <span class="pill">Stack <b>Python · FastAPI · sentence-transformers</b></span>
+            <span class="pill">Output <b>own microservice</b></span>
+          </div>
+        </article>
+
+        <!-- 4 SHAHAIAR -->
+        <article class="card" id="shahaiar">
+          <div class="card-num">04</div>
+          <div class="card-top">
+            <div class="avatar">S</div>
+            <div class="who"><div class="name">Shahaiar</div><div class="role">Backend · QA</div></div>
+            <span class="chip baby">Starter</span>
+          </div>
+          <h3>API Smoke-Test Script</h3>
+          <p class="lede">A fast, repeatable health check across the API surface.</p>
+          <div class="body">
+            Write a <strong>Python + httpx</strong> script that hits the public and a few authenticated endpoints,
+            asserts <strong>status codes and key response fields</strong>, and prints a clean pass/fail report.
+            Keep it runnable in CI. Endpoint URLs and the auth token are provided privately (see below).
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>The script reports pass/fail for every target endpoint and exits non-zero on failure.</p></div>
+          <div class="meta-row">
+            <span class="pill est">Estimate <b>1–1.5 days</b></span>
+            <span class="pill">Stack <b>Python · httpx</b></span>
+            <span class="pill">Output <b>own script</b></span>
+          </div>
+        </article>
+
+        <!-- 5 ANAGHA -->
+        <article class="card" id="anagha">
+          <div class="card-num">05</div>
+          <div class="card-top">
+            <div class="avatar">A</div>
+            <div class="who"><div class="name">Anagha</div><div class="role">Backend · Test Data</div></div>
+            <span class="chip baby">Starter</span>
+          </div>
+          <h3>Sample Materials Generator</h3>
+          <p class="lede">Create realistic study documents to exercise the ingestion pipeline.</p>
+          <div class="body">
+            Write a <strong>Python script</strong> that generates varied sample study documents
+            (<strong>.txt / .md</strong>) across subjects — Biology, History, Networking and more — and across sizes,
+            from a short note to a long chapter. These become the fixtures the team uses to test uploads end to end.
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>Running the script outputs a folder of ready-to-use sample files across subjects and lengths.</p></div>
+          <div class="meta-row">
+            <span class="pill est">Estimate <b>1 day</b></span>
+            <span class="pill">Stack <b>Python</b></span>
+            <span class="pill">Output <b>own script · no credentials needed</b></span>
+          </div>
+        </article>
+
+      </div>
+    </div>
+
+    <!-- GROUND RULES -->
+    <div class="rules">
+      <h4>Ground rules</h4>
+      <p>Every task is a self-contained deliverable. You build the isolated piece — the lead integrates it into the main system.</p>
+      <ul>
+        <li><span class="tick">/</span> Build in your own folder / repo — never touch the main backend code.</li>
+        <li><span class="tick">/</span> Ship a README with clear run steps.</li>
+        <li><span class="tick">/</span> Match the given contract exactly (signatures / request shapes).</li>
+        <li><span class="tick">/</span> Write tests where the task calls for them.</li>
+        <li><span class="tick">/</span> Keep changes additive; don't break existing behaviour.</li>
+        <li><span class="tick">/</span> Ask early if a contract is unclear.</li>
+      </ul>
+    </div>
+
+    <!-- WHATSAPP CALLOUT (no secrets on the page) -->
+    <div class="wa">
+      <div class="txt">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.9c0 2.1.55 4.15 1.6 5.96L2 22l4.25-1.68a9.9 9.9 0 0 0 5.79 1.85h.01c5.46 0 9.9-4.45 9.9-9.9 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-2.52 1 .67-2.46-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.23 8.24-8.23a8.2 8.2 0 0 1 8.23 8.24c0 4.54-3.7 8.23-8.23 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.8-.23-.09-.39-.13-.56.12-.16.25-.64.8-.79.97-.14.16-.29.18-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.13-.15.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.4-.42-.56-.43h-.48c-.16 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29Z"/></svg>
+        </div>
+        <div>
+          <h5>Access details are shared via WhatsApp</h5>
+          <p>Database connection, Firebase config and the backend API base URL are <strong>not published here</strong>. The lead sends them to you privately on WhatsApp.</p>
+        </div>
+      </div>
+      <span class="badge">Sent on WhatsApp</span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot-in">
+    <div class="brand"><span class="dot"></span>Study Studio <small>&nbsp;· intern board</small></div>
+    <small>Internal use only · <span id="yr"></span></small>
+  </div>
+</footer>
+
+<script>
+  // year
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  // cursor glow (desktop / fine pointer only)
+  var cursor = document.getElementById('cursor');
+  if (window.matchMedia('(pointer:fine)').matches){
+    window.addEventListener('pointermove', function(e){
+      cursor.style.opacity = 1;
+      cursor.style.left = e.clientX + 'px';
+      cursor.style.top = e.clientY + 'px';
+    });
+    window.addEventListener('pointerleave', function(){ cursor.style.opacity = 0; });
+  }
+
+  // reveal on scroll
+  var cards = document.querySelectorAll('.card');
+  var revIO = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); revIO.unobserve(en.target);} });
+  }, {threshold:.16});
+  cards.forEach(function(c){ revIO.observe(c); });
+
+  // active index highlight
+  var links = document.querySelectorAll('.index a');
+  var map = {};
+  links.forEach(function(l){ map[l.dataset.target] = l; });
+  var actIO = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){
+        links.forEach(function(l){ l.classList.remove('active'); });
+        var a = map[en.target.id]; if(a) a.classList.add('active');
+      }
+    });
+  }, {rootMargin:'-45% 0px -50% 0px', threshold:0});
+  cards.forEach(function(c){ actIO.observe(c); });
+</script>
+</body>
+</html>
