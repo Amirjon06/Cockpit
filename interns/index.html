@@ -71,6 +71,12 @@
   .week-stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
   .week-stats .s{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:100px;padding:7px 14px}
   .week-stats .s b{color:var(--text);font-weight:600}
+  .brief{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:28px}
+  .brief-item{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:16px;padding:20px 24px;background:var(--surface)}
+  .brief-item::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--red)}
+  .bi-k{display:block;font-family:'Poppins';font-weight:600;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted-2);margin-bottom:9px}
+  .bi-v{display:block;font-family:'Poppins';font-weight:700;font-size:17px;letter-spacing:-.01em}
+  .bi-v.r{color:var(--red)}
 
   /* LAYOUT */
   .grid{display:grid;grid-template-columns:220px 1fr;gap:48px;margin-top:44px;align-items:start}
@@ -146,6 +152,11 @@
   .foot-in{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
   footer .brand{font-size:15px}
   footer small{color:var(--muted-2);font-size:13px}
+  .motto{padding:8px 0 34px;border-bottom:1px solid var(--line);margin-bottom:28px}
+  .motto-brand{font-family:'Poppins';font-weight:800;font-size:clamp(30px,4.4vw,48px);letter-spacing:-.03em;display:inline-flex;align-items:center}
+  .motto-brand i{width:10px;height:10px;border-radius:50%;background:var(--red);margin-left:10px;box-shadow:0 0 16px var(--red-glow)}
+  .motto-line{color:var(--muted);font-size:clamp(15px,2vw,18px);margin-top:8px;max-width:560px}
+  .motto-line b{color:var(--text);font-weight:600}
 
   @media(max-width:860px){
     .grid{grid-template-columns:1fr;gap:20px}
@@ -179,7 +190,7 @@
     <span class="eyebrow"><span class="ln"></span>Study Studio · Engineering Internship</span>
     <h1><span class="out">Build.</span><span class="red">Ship.</span><span class="out">Repeat.</span></h1>
     <div class="hero-sub">
-      <p>Your assignment board. Every week a new set of missions lands here — each one a self-contained module you own end to end, from first commit to a working, tested deliverable.</p>
+      <p>Your assignment board. Every week a new set of missions lands here — each one a self-contained module you own end to end. Past assignments stay on the board, so you can revisit any week's tasks anytime.</p>
       <div class="hero-meta">
         <div class="m"><span class="k">Team</span><span class="v">05</span></div>
         <div class="m"><span class="k">Current</span><span class="v">Assignment 01</span></div>
@@ -198,12 +209,18 @@
     <div class="week-head">
       <span class="week-tag">Assignment 01</span>
       <h1 class="week-title">01 August 2026</h1>
-      <p class="week-note">This week's tasks. Kick off Monday, deliverables due by the end of the week.</p>
+      <p class="week-note">This week's tasks — pick yours up and build. Work at your own pace; there's no hard deadline.</p>
       <div class="week-stats">
         <span class="s"><b>5</b> tasks</span>
         <span class="s"><b>1</b> per person</span>
-        <span class="s">Due <b>08 Aug 2026</b></span>
       </div>
+    </div>
+
+    <!-- submission / evaluation / check-ins -->
+    <div class="brief">
+      <div class="brief-item"><span class="bi-k">Submission</span><span class="bi-v">Fork-based pull request</span></div>
+      <div class="brief-item"><span class="bi-k">Evaluation</span><span class="bi-v r">8 August 2026</span></div>
+      <div class="brief-item"><span class="bi-k">Check-ins</span><span class="bi-v">Daily · via WhatsApp</span></div>
     </div>
 
     <div class="grid">
@@ -376,8 +393,8 @@
     <!-- upcoming next week -->
     <div class="upcoming">
       <div>
-        <div class="ud">08 August 2026</div>
-        <div class="ul">Assignment 02 — new tasks drop next week</div>
+        <div class="ud">Assignment 02</div>
+        <div class="ul">New tasks drop next week — and this board keeps every past assignment too</div>
       </div>
       <div class="dots"><i></i><i></i><i></i></div>
     </div>
@@ -402,8 +419,8 @@
       <div class="txt">
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.9c0 2.1.55 4.15 1.6 5.96L2 22l4.25-1.68a9.9 9.9 0 0 0 5.79 1.85h.01c5.46 0 9.9-4.45 9.9-9.9 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-2.52 1 .67-2.46-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.23 8.24-8.23a8.2 8.2 0 0 1 8.23 8.24c0 4.54-3.7 8.23-8.23 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.8-.23-.09-.39-.13-.56.12-.16.25-.64.8-.79.97-.14.16-.29.18-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.13-.15.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.4-.42-.56-.43h-.48c-.16 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29Z"/></svg></div>
         <div>
-          <h5>Access details are shared via WhatsApp</h5>
-          <p>Database connection, Firebase config and the backend API base URL are <strong>not published here</strong>. The lead sends them to you privately on WhatsApp.</p>
+          <h5>Everything happens on WhatsApp</h5>
+          <p>Database connection, Firebase config and the backend API base URL are <strong>not published here</strong> — the lead sends them to you privately. The Octopilot assistant staff may also check in on your <strong>daily progress and status</strong> there. Happy coding!</p>
         </div>
       </div>
       <span class="badge">Sent on WhatsApp</span>
@@ -412,9 +429,15 @@
 </main>
 
 <footer>
-  <div class="wrap foot-in">
-    <div class="brand"><span class="dot"></span>Study Studio <small>&nbsp;· intern board</small></div>
-    <small>Internal use only · <span id="yr"></span></small>
+  <div class="wrap">
+    <div class="motto">
+      <div class="motto-brand">Octopilot<i></i></div>
+      <div class="motto-line"><b>Write Smarter.</b> It's still you — but with more arms.</div>
+    </div>
+    <div class="foot-in">
+      <div class="brand"><span class="dot"></span>Study Studio <small>&nbsp;· intern board</small></div>
+      <small>Internal use only · <span id="yr"></span></small>
+    </div>
   </div>
 </footer>
 
