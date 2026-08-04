@@ -83,4 +83,20 @@ void main() {
     expect(find.text('Your Study Studio at a Glance'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Screen 17 renders every card on desktop', (tester) async {
+    await setDesktopViewport(tester);
+    await tester.pumpWidget(app(const WelcomeBackPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome Back'), findsOneWidget);
+    expect(find.text("Today's Briefing"), findsOneWidget);
+    expect(find.text("Here's today's plan"), findsOneWidget);
+    expect(find.text('Your Study Studio at a Glance'), findsOneWidget);
+    expect(find.text('Learning Milestones'), findsOneWidget);
+    expect(find.text('AI has noticed...'), findsOneWidget);
+    expect(find.text('Knowledge Evolution'), findsOneWidget);
+    expect(find.text("What's New"), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
