@@ -7,11 +7,6 @@ import '../../application/providers.dart';
 import '../widgets/studio_palette.dart';
 import '../widgets/studio_scaffold.dart';
 
-/// Screen 15 — Manage Study Studio.
-///
-/// Uses presentation-only mock data and follows the supplied design:
-/// studio summary, material upload, AI preview, timeline, merge preview,
-/// export tools, AI settings, and the final update action.
 class ManageStudyStudioPage extends ConsumerStatefulWidget {
   const ManageStudyStudioPage({required this.studioId, super.key});
 
@@ -46,7 +41,7 @@ class _ManageStudyStudioPageState extends ConsumerState<ManageStudyStudioPage> {
         bottom: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final desktop = constraints.maxWidth >= 900;
+            final desktop = isDesktop(context);
 
             return Padding(
               padding: EdgeInsets.fromLTRB(

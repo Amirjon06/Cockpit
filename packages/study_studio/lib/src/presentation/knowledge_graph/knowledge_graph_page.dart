@@ -42,90 +42,237 @@ class _KnowledgeGraphPageState extends ConsumerState<KnowledgeGraphPage> {
   Widget build(BuildContext context) {
     final studioTitle =
         ref.watch(studioProvider(widget.studioId)).valueOrNull?.title ??
-            'Study Studio';
-    return Scaffold(
-      body: SafeArea(
+        'Study Studio';
+    final graphStage = _GraphStage(
+      transformationController: _tc,
+      graph: _graph,
+      selectedId: _selectedId,
+      onTapNode: (id) => setState(() => _selectedId = id),
+      onZoomIn: () => _zoomBy(1.2),
+      onZoomOut: () => _zoomBy(1 / 1.2),
+      onReset: _resetView,
+      onFit: _resetView,
+    );
+
+    return StudioShell(
+      selectedIndex: 1,
+      child: SafeArea(
         bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints:
-                BoxConstraints(maxWidth: isDesktop(context) ? 860 : 480),
-            child: Column(
-              children: [
-                _Header(
-                  title: studioTitle,
-                  connectionCount: _graph.connectionCount,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final desktop = isDesktop(context);
+            final wideDesktop = desktop && constraints.maxWidth >= 1000;
+
+            if (wideDesktop) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  CockpitSpacing.xl,
+                  CockpitSpacing.sm,
+                  CockpitSpacing.xl,
+                  CockpitSpacing.lg,
                 ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            CockpitSpacing.lg,
-                            CockpitSpacing.xs,
-                            CockpitSpacing.lg,
-                            CockpitSpacing.sm,
-                          ),
-                          child: _AiInsightCard(),
+                child: ContentColumn(
+                  maxWidth: 1180,
+                  child: Column(
+                    children: [
+                      _Header(
+                        title: studioTitle,
+                        connectionCount: _graph.connectionCount,
+                      ),
+                      const SizedBox(height: CockpitSpacing.md),
+                      const _GraphBottomNav(),
+                      const SizedBox(height: CockpitSpacing.md),
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(child: graphStage),
+                            const SizedBox(width: CockpitSpacing.xl),
+                            SizedBox(
+                              width: 360,
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  children: [
+                                    const _AiInsightCard(),
+                                    const SizedBox(height: CockpitSpacing.md),
+                                    _DetailSheet(
+                                      node: _selected,
+                                      studioId: widget.studioId,
+                                    ),
+                                    const SizedBox(height: CockpitSpacing.md),
+                                    const _Legend(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(
-                          height: 520,
-                          child: Stack(
-                            clipBehavior: Clip.none,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            if (desktop) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  CockpitSpacing.xl,
+                  CockpitSpacing.sm,
+                  CockpitSpacing.xl,
+                  CockpitSpacing.lg,
+                ),
+                child: ContentColumn(
+                  maxWidth: 860,
+                  child: Column(
+                    children: [
+                      _Header(
+                        title: studioTitle,
+                        connectionCount: _graph.connectionCount,
+                      ),
+                      const SizedBox(height: CockpitSpacing.md),
+                      const _GraphBottomNav(),
+                      const SizedBox(height: CockpitSpacing.md),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
                             children: [
-                              Positioned.fill(
-                                child: InteractiveViewer(
-                                  transformationController: _tc,
-                                  panEnabled: false,
-                                  minScale: 0.5,
-                                  maxScale: 3,
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      final size = Size(
-                                        constraints.maxWidth,
-                                        constraints.maxHeight,
-                                      );
-                                      return _GraphCanvas(
-                                        graph: _graph,
-                                        size: size,
-                                        selectedId: _selectedId,
-                                        onTapNode: (id) =>
-                                            setState(() => _selectedId = id),
-                                      );
-                                    },
-                                  ),
-                                ),
+                              SizedBox(height: 620, child: graphStage),
+                              const SizedBox(height: CockpitSpacing.md),
+                              const _AiInsightCard(),
+                              const SizedBox(height: CockpitSpacing.md),
+                              _DetailSheet(
+                                node: _selected,
+                                studioId: widget.studioId,
                               ),
-                              Positioned(
-                                right: CockpitSpacing.sm,
-                                top: CockpitSpacing.sm,
-                                child: _ZoomControls(
-                                  onZoomIn: () => _zoomBy(1.2),
-                                  onZoomOut: () => _zoomBy(1 / 1.2),
-                                  onReset: _resetView,
-                                  onFit: _resetView,
-                                ),
-                              ),
+                              const SizedBox(height: CockpitSpacing.md),
+                              const _Legend(),
                             ],
                           ),
                         ),
-                        _DetailSheet(
-                          node: _selected,
-                          studioId: widget.studioId,
-                        ),
-                        const _Legend(),
-                        const SizedBox(height: CockpitSpacing.md),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
+              );
+            }
+
+            return Center(
+              child: ContentColumn(
+                maxWidth: 480,
+                child: Column(
+                  children: [
+                    _Header(
+                      title: studioTitle,
+                      connectionCount: _graph.connectionCount,
+                    ),
+                    const _GraphBottomNav(),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                CockpitSpacing.lg,
+                                CockpitSpacing.xs,
+                                CockpitSpacing.lg,
+                                CockpitSpacing.sm,
+                              ),
+                              child: _AiInsightCard(),
+                            ),
+                            SizedBox(height: 520, child: graphStage),
+                            _DetailSheet(
+                              node: _selected,
+                              studioId: widget.studioId,
+                            ),
+                            const _Legend(),
+                            const SizedBox(height: CockpitSpacing.md),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
-      bottomNavigationBar: const _GraphBottomNav(),
+    );
+  }
+}
+
+class _GraphStage extends StatelessWidget {
+  const _GraphStage({
+    required this.transformationController,
+    required this.graph,
+    required this.selectedId,
+    required this.onTapNode,
+    required this.onZoomIn,
+    required this.onZoomOut,
+    required this.onReset,
+    required this.onFit,
+  });
+
+  final TransformationController transformationController;
+  final _GraphData graph;
+  final String selectedId;
+  final ValueChanged<String> onTapNode;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+  final VoidCallback onReset;
+  final VoidCallback onFit;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(CockpitRadii.xl),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(CockpitRadii.xl),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                transformationController: transformationController,
+                panEnabled: false,
+                minScale: 0.5,
+                maxScale: 3,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final size = Size(
+                      constraints.maxWidth,
+                      constraints.maxHeight,
+                    );
+                    return _GraphCanvas(
+                      graph: graph,
+                      size: size,
+                      selectedId: selectedId,
+                      onTapNode: onTapNode,
+                    );
+                  },
+                ),
+              ),
+            ),
+            Positioned(
+              right: CockpitSpacing.sm,
+              top: CockpitSpacing.sm,
+              child: _ZoomControls(
+                onZoomIn: onZoomIn,
+                onZoomOut: onZoomOut,
+                onReset: onReset,
+                onFit: onFit,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -258,7 +405,6 @@ class _GraphCanvas extends StatelessWidget {
   }
 }
 
-// Draws the curved connecting lines between the nodes.
 class _EdgePainter extends CustomPainter {
   _EdgePainter({
     required this.graph,
@@ -618,13 +764,107 @@ class _DetailSheet extends StatelessWidget {
     final scheme = theme.colorScheme;
     final color = _masteryColor(scheme, node.mastery);
     final base = '/study/$studioId';
+    final infoBlocks = <Widget>[
+      _DetailInfoBlock(
+        title: 'Related Concepts',
+        child: Wrap(
+          spacing: CockpitSpacing.xs,
+          runSpacing: CockpitSpacing.xs,
+          children: [
+            for (final r in node.related) TagChip(label: r),
+            if (node.relatedMore > 0)
+              TagChip(label: '+${node.relatedMore} more'),
+          ],
+        ),
+      ),
+      if (node.studyTimeMin != null)
+        _DetailInfoBlock(
+          title: 'Study Time',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule,
+                    size: 14,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: CockpitSpacing.xs),
+                  Text(
+                    '${node.studyTimeMin} min',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                'Across all activities',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      if (node.weakness != null)
+        _DetailInfoBlock(
+          title: 'Weakness',
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.show_chart_rounded, size: 14, color: scheme.error),
+              const SizedBox(width: CockpitSpacing.xs),
+              Expanded(
+                child: Text(
+                  node.weakness!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    height: 1.2,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+    ];
+    final modeCards = <Widget>[
+      _ModeCard(
+        icon: Icons.school_rounded,
+        color: scheme.primary,
+        title: 'Teach Me',
+        subtitle: 'Learn this topic',
+        onTap: () => context.go('$base/topics'),
+      ),
+      _ModeCard(
+        icon: Icons.help_rounded,
+        color: CockpitColors.brand.success,
+        title: 'Quiz Me',
+        subtitle: 'Test yourself',
+        onTap: () => context.go('$base/quiz'),
+      ),
+      _ModeCard(
+        icon: Icons.style_rounded,
+        color: scheme.tertiary,
+        title: 'Flashcards',
+        subtitle: 'Review cards',
+        onTap: () => context.go('$base/flashcards'),
+      ),
+      _ModeCard(
+        icon: Icons.track_changes_rounded,
+        color: scheme.error,
+        title: 'Scenario',
+        subtitle: 'Apply in context',
+        onTap: () => context.go('$base/topics'),
+      ),
+    ];
 
     return Container(
       decoration: BoxDecoration(
         color: scheme.surface,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CockpitRadii.xl),
-        ),
+        borderRadius: BorderRadius.circular(CockpitRadii.xl),
         border: Border.all(color: scheme.outlineVariant),
         boxShadow: [
           BoxShadow(
@@ -712,160 +952,88 @@ class _DetailSheet extends StatelessWidget {
           const SizedBox(height: CockpitSpacing.md),
           Divider(color: scheme.outlineVariant, height: 1),
           const SizedBox(height: CockpitSpacing.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 5,
-                child: Column(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 680) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Related Concepts',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: CockpitSpacing.xs),
-                    Wrap(
-                      spacing: CockpitSpacing.xs,
-                      runSpacing: CockpitSpacing.xs,
-                      children: [
-                        for (final r in node.related) TagChip(label: r),
-                        if (node.relatedMore > 0)
-                          TagChip(label: '+${node.relatedMore} more'),
-                      ],
-                    ),
+                    for (var i = 0; i < infoBlocks.length; i++) ...[
+                      infoBlocks[i],
+                      if (i != infoBlocks.length - 1)
+                        const SizedBox(height: CockpitSpacing.md),
+                    ],
                   ],
-                ),
-              ),
-              if (node.studyTimeMin != null) ...[
-                const SizedBox(width: CockpitSpacing.md),
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Study Time',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: CockpitSpacing.xs),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.schedule,
-                            size: 14,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: CockpitSpacing.xs),
-                          Text(
-                            '${node.studyTimeMin} min',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        'Across all activities',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              if (node.weakness != null) ...[
-                const SizedBox(width: CockpitSpacing.md),
-                Expanded(
-                  flex: 4,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Weakness',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: CockpitSpacing.xs),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.show_chart_rounded,
-                            size: 14,
-                            color: scheme.error,
-                          ),
-                          const SizedBox(width: CockpitSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              node.weakness!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                height: 1.2,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < infoBlocks.length; i++) ...[
+                    Expanded(child: infoBlocks[i]),
+                    if (i != infoBlocks.length - 1)
+                      const SizedBox(width: CockpitSpacing.md),
+                  ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: CockpitSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _ModeCard(
-                  icon: Icons.school_rounded,
-                  color: scheme.primary,
-                  title: 'Teach Me',
-                  subtitle: 'Learn this topic',
-                  onTap: () => context.go('$base/topics'),
-                ),
-              ),
-              const SizedBox(width: CockpitSpacing.sm),
-              Expanded(
-                child: _ModeCard(
-                  icon: Icons.help_rounded,
-                  color: CockpitColors.brand.success,
-                  title: 'Quiz Me',
-                  subtitle: 'Test yourself',
-                  onTap: () => context.go('$base/quiz'),
-                ),
-              ),
-              const SizedBox(width: CockpitSpacing.sm),
-              Expanded(
-                child: _ModeCard(
-                  icon: Icons.style_rounded,
-                  color: scheme.tertiary,
-                  title: 'Flashcards',
-                  subtitle: 'Review cards',
-                  onTap: () => context.go('$base/flashcards'),
-                ),
-              ),
-              const SizedBox(width: CockpitSpacing.sm),
-              Expanded(
-                child: _ModeCard(
-                  icon: Icons.track_changes_rounded,
-                  color: scheme.error,
-                  title: 'Scenario',
-                  subtitle: 'Apply in context',
-                  onTap: () => context.go('$base/topics'),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 680) {
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  mainAxisSpacing: CockpitSpacing.sm,
+                  crossAxisSpacing: CockpitSpacing.sm,
+                  childAspectRatio: 1.25,
+                  children: modeCards,
+                );
+              }
+
+              return Row(
+                children: [
+                  for (var i = 0; i < modeCards.length; i++) ...[
+                    Expanded(child: modeCards[i]),
+                    if (i != modeCards.length - 1)
+                      const SizedBox(width: CockpitSpacing.sm),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DetailInfoBlock extends StatelessWidget {
+  const _DetailInfoBlock({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: CockpitSpacing.xs),
+        child,
+      ],
     );
   }
 }
@@ -1151,7 +1319,6 @@ class _GraphNode {
   final IconData icon;
   final _Mastery mastery;
 
-  // x and y are 0-1 so node positions scale to any screen size.
   final double x;
   final double y;
   final double radius;
@@ -1183,7 +1350,6 @@ class _GraphData {
   final int connectionCount;
 }
 
-// The graph's nodes and connections (local mock data).
 _GraphData _buildGraph() {
   const nodes = <_GraphNode>[
     _GraphNode(

@@ -17,23 +17,15 @@ class StudyPlanPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(studioProvider(studioId));
 
-    return Scaffold(
-      body: SafeArea(
+    return StudioShell(
+      selectedIndex: 1,
+      child: SafeArea(
         bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: isDesktop(context) ? 860 : 480),
-            child: async.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (studio) => _StudyPlanBody(studio: studio),
-            ),
-          ),
+        child: async.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (studio) => _StudyPlanBody(studio: studio),
         ),
-      ),
-      bottomNavigationBar: async.maybeWhen(
-        data: (studio) => _BottomActionBar(studio: studio),
-        orElse: () => null,
       ),
     );
   }
@@ -45,57 +37,211 @@ class _StudyPlanBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Weakest topics first = highest priority to study.
     final ranked = [...studio.topics]
       ..sort((a, b) => a.mastery.compareTo(b.mastery));
     final priority = ranked.take(3).toList();
     final top = priority.isNotEmpty ? priority.first : null;
+    final desktop = isDesktop(context);
 
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        _Header(studio: studio),
-        const SizedBox(height: CockpitSpacing.md),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: CockpitSpacing.lg),
-          child: _NextSessionCard(studio: studio, top: top),
+    if (desktop) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final wideDesktop = constraints.maxWidth >= 1000;
+
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(
+              CockpitSpacing.xl,
+              CockpitSpacing.sm,
+              CockpitSpacing.xl,
+              CockpitSpacing.lg,
+            ),
+            child: ContentColumn(
+              maxWidth: wideDesktop ? 1180 : 860,
+              child: Column(
+                children: [
+                  _Header(studio: studio),
+                  const SizedBox(height: CockpitSpacing.lg),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: CockpitSpacing.lg),
+                      child: wideDesktop
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 7,
+                                  child: _StudyPlanMainColumn(
+                                    studio: studio,
+                                    top: top,
+                                    priority: priority,
+                                    ranked: ranked,
+                                  ),
+                                ),
+                                const SizedBox(width: CockpitSpacing.xl),
+                                SizedBox(
+                                  width: 340,
+                                  child: _StudyPlanSidebar(
+                                    studio: studio,
+                                    top: top,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _StudyPlanMainColumn(
+                                  studio: studio,
+                                  top: top,
+                                  priority: priority,
+                                  ranked: ranked,
+                                ),
+                                if (top != null) ...[
+                                  const SizedBox(height: CockpitSpacing.xl),
+                                  _PlanReasoningRow(studio: studio, top: top),
+                                ],
+                                const SizedBox(height: CockpitSpacing.lg),
+                                const _SmartReminders(),
+                                const SizedBox(height: CockpitSpacing.md),
+                                _BottomActionBar(studio: studio),
+                              ],
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return Center(
+      child: ContentColumn(
+        maxWidth: 480,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            _Header(studio: studio),
+            const SizedBox(height: CockpitSpacing.md),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: CockpitSpacing.lg,
+              ),
+              child: _NextSessionCard(studio: studio, top: top),
+            ),
+            const SizedBox(height: CockpitSpacing.xl),
+            if (priority.isNotEmpty) ...[
+              const _PrioritySectionHeader(),
+              const SizedBox(height: CockpitSpacing.sm),
+              for (var i = 0; i < priority.length; i++)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    CockpitSpacing.lg,
+                    0,
+                    CockpitSpacing.lg,
+                    CockpitSpacing.md,
+                  ),
+                  child: _PriorityTopicCard(
+                    studio: studio,
+                    topic: priority[i],
+                    rank: i,
+                  ),
+                ),
+              const SizedBox(height: CockpitSpacing.sm),
+            ],
+            if (top != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: CockpitSpacing.lg,
+                ),
+                child: _PlanReasoningRow(studio: studio, top: top),
+              ),
+            const SizedBox(height: CockpitSpacing.xl),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: CockpitSpacing.lg,
+              ),
+              child: _AdaptiveSchedule(studio: studio, ranked: ranked),
+            ),
+            const SizedBox(height: CockpitSpacing.lg),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: CockpitSpacing.lg),
+              child: _SmartReminders(),
+            ),
+            const SizedBox(height: CockpitSpacing.md),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: CockpitSpacing.lg,
+              ),
+              child: _BottomActionBar(studio: studio),
+            ),
+            const SizedBox(height: CockpitSpacing.xl),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _StudyPlanMainColumn extends StatelessWidget {
+  const _StudyPlanMainColumn({
+    required this.studio,
+    required this.top,
+    required this.priority,
+    required this.ranked,
+  });
+
+  final Studio studio;
+  final Topic? top;
+  final List<Topic> priority;
+  final List<Topic> ranked;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _NextSessionCard(studio: studio, top: top),
         const SizedBox(height: CockpitSpacing.xl),
         if (priority.isNotEmpty) ...[
           const _PrioritySectionHeader(),
           const SizedBox(height: CockpitSpacing.sm),
-          for (var i = 0; i < priority.length; i++)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                CockpitSpacing.lg,
-                0,
-                CockpitSpacing.lg,
-                CockpitSpacing.md,
-              ),
-              child: _PriorityTopicCard(
-                studio: studio,
-                topic: priority[i],
-                rank: i,
-              ),
-            ),
-          const SizedBox(height: CockpitSpacing.sm),
+          for (var i = 0; i < priority.length; i++) ...[
+            _PriorityTopicCard(studio: studio, topic: priority[i], rank: i),
+            if (i != priority.length - 1)
+              const SizedBox(height: CockpitSpacing.md),
+          ],
         ],
-        if (top != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: CockpitSpacing.lg),
-            child: _PlanReasoningRow(studio: studio, top: top),
-          ),
         const SizedBox(height: CockpitSpacing.xl),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: CockpitSpacing.lg),
-          child: _AdaptiveSchedule(studio: studio, ranked: ranked),
-        ),
-        const SizedBox(height: CockpitSpacing.lg),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: CockpitSpacing.lg),
-          child: _SmartReminders(),
-        ),
-        const SizedBox(height: CockpitSpacing.xl),
+        _AdaptiveSchedule(studio: studio, ranked: ranked),
+      ],
+    );
+  }
+}
+
+class _StudyPlanSidebar extends StatelessWidget {
+  const _StudyPlanSidebar({required this.studio, required this.top});
+
+  final Studio studio;
+  final Topic? top;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (top != null) ...[
+          _LearningPathCard(top: top!),
+          const SizedBox(height: CockpitSpacing.md),
+          _AiReasoningCard(studio: studio, top: top!),
+          const SizedBox(height: CockpitSpacing.md),
+          _WeeklyGoalCard(studio: studio),
+          const SizedBox(height: CockpitSpacing.md),
+        ],
+        const _SmartReminders(),
+        const SizedBox(height: CockpitSpacing.md),
+        _BottomActionBar(studio: studio),
       ],
     );
   }
@@ -611,21 +757,36 @@ class _PlanReasoningRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: _LearningPathCard(top: top)),
-        const SizedBox(width: CockpitSpacing.md),
-        Expanded(
-          child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 720;
+        final insightColumn = Column(
+          children: [
+            _AiReasoningCard(studio: studio, top: top),
+            const SizedBox(height: CockpitSpacing.md),
+            _WeeklyGoalCard(studio: studio),
+          ],
+        );
+
+        if (compact) {
+          return Column(
             children: [
-              _AiReasoningCard(studio: studio, top: top),
+              _LearningPathCard(top: top),
               const SizedBox(height: CockpitSpacing.md),
-              _WeeklyGoalCard(studio: studio),
+              insightColumn,
             ],
-          ),
-        ),
-      ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _LearningPathCard(top: top)),
+            const SizedBox(width: CockpitSpacing.md),
+            Expanded(child: insightColumn),
+          ],
+        );
+      },
     );
   }
 }
@@ -1191,7 +1352,6 @@ class _PlanStep {
   final int minutes;
 }
 
-// Mock steps for the recommended learning path.
 List<_PlanStep> _planSteps(Topic? top) {
   final cards = top?.flashcards.length ?? 8;
   return [
