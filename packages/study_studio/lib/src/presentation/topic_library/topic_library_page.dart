@@ -76,63 +76,113 @@ class _TopicLibraryPageState extends ConsumerState<TopicLibraryPage> {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (studio) {
           final topics = _apply(studio.topics);
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(CockpitSpacing.lg),
-                child: Column(
-                  children: [
-                    TextField(
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.search),
-                        hintText: 'Search topics',
-                      ),
-                      onChanged: (v) => setState(() => _query = v),
-                    ),
-                    const SizedBox(height: CockpitSpacing.md),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _EnumDropdown<_Filter>(
-                            label: 'Filter',
-                            value: _filter,
-                            values: _Filter.values,
-                            naming: _filterName,
-                            onChanged: (v) => setState(() => _filter = v),
-                          ),
-                        ),
-                        const SizedBox(width: CockpitSpacing.md),
-                        Expanded(
-                          child: _EnumDropdown<_Sort>(
-                            label: 'Sort by',
-                            value: _sort,
-                            values: _Sort.values,
-                            naming: _sortName,
-                            onChanged: (v) => setState(() => _sort = v),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+          final isDesktop = MediaQuery.of(context).size.width >= 1000;
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: isDesktop ? 1400 : double.infinity,
               ),
-              Expanded(
-                child: topics.isEmpty
-                    ? const EmptyState(
-                        icon: Icons.search_off,
-                        title: 'No topics match',
-                        message: 'Try a different filter or search term.',
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(
-                            CockpitSpacing.lg, 0, CockpitSpacing.lg, CockpitSpacing.lg),
-                        itemCount: topics.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: CockpitSpacing.md),
-                        itemBuilder: (_, i) => TopicCard(topic: topics[i]),
-                      ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(CockpitSpacing.lg),
+                    child: isDesktop
+                        ? Row(
+                            children: [
+                              SizedBox(
+                                width: 560,
+                                child: TextField(
+                                  decoration: const InputDecoration(
+                                    prefixIcon: Icon(Icons.search),
+                                    hintText: 'Search topics',
+                                  ),
+                                  onChanged: (v) => setState(() => _query = v),
+                                ),
+                              ),
+                              const SizedBox(width: CockpitSpacing.lg),
+                              Expanded(
+                                child: _EnumDropdown<_Filter>(
+                                  label: 'Filter',
+                                  value: _filter,
+                                  values: _Filter.values,
+                                  naming: _filterName,
+                                  onChanged: (v) => setState(() => _filter = v),
+                                ),
+                              ),
+                              const SizedBox(width: CockpitSpacing.md),
+                              Expanded(
+                                child: _EnumDropdown<_Sort>(
+                                  label: 'Sort by',
+                                  value: _sort,
+                                  values: _Sort.values,
+                                  naming: _sortName,
+                                  onChanged: (v) => setState(() => _sort = v),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              TextField(
+                                decoration: const InputDecoration(
+                                  prefixIcon: Icon(Icons.search),
+                                  hintText: 'Search topics',
+                                ),
+                                onChanged: (v) => setState(() => _query = v),
+                              ),
+                              const SizedBox(height: CockpitSpacing.md),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _EnumDropdown<_Filter>(
+                                      label: 'Filter',
+                                      value: _filter,
+                                      values: _Filter.values,
+                                      naming: _filterName,
+                                      onChanged: (v) =>
+                                          setState(() => _filter = v),
+                                    ),
+                                  ),
+                                  const SizedBox(width: CockpitSpacing.md),
+                                  Expanded(
+                                    child: _EnumDropdown<_Sort>(
+                                      label: 'Sort by',
+                                      value: _sort,
+                                      values: _Sort.values,
+                                      naming: _sortName,
+                                      onChanged: (v) =>
+                                          setState(() => _sort = v),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                  ),
+                  Expanded(
+                    child: topics.isEmpty
+                        ? const EmptyState(
+                            icon: Icons.search_off,
+                            title: 'No topics match',
+                            message: 'Try a different filter or search term.',
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(
+                              CockpitSpacing.lg,
+                              0,
+                              CockpitSpacing.lg,
+                              CockpitSpacing.lg,
+                            ),
+                            itemCount: topics.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: CockpitSpacing.md),
+                            itemBuilder: (_, i) => TopicCard(topic: topics[i]),
+                          ),
+                  ),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),
@@ -140,19 +190,19 @@ class _TopicLibraryPageState extends ConsumerState<TopicLibraryPage> {
   }
 
   static String _filterName(_Filter f) => switch (f) {
-        _Filter.all => 'All',
-        _Filter.weak => 'Weak',
-        _Filter.mastered => 'Mastered',
-        _Filter.highImportance => 'High importance',
-        _Filter.hard => 'Hard',
-      };
+    _Filter.all => 'All',
+    _Filter.weak => 'Weak',
+    _Filter.mastered => 'Mastered',
+    _Filter.highImportance => 'High importance',
+    _Filter.hard => 'Hard',
+  };
 
   static String _sortName(_Sort s) => switch (s) {
-        _Sort.importance => 'Importance',
-        _Sort.difficulty => 'Difficulty',
-        _Sort.mastery => 'Lowest mastery',
-        _Sort.title => 'Title',
-      };
+    _Sort.importance => 'Importance',
+    _Sort.difficulty => 'Difficulty',
+    _Sort.mastery => 'Lowest mastery',
+    _Sort.title => 'Title',
+  };
 }
 
 class _EnumDropdown<T> extends StatelessWidget {
@@ -173,17 +223,25 @@ class _EnumDropdown<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InputDecorator(
-      decoration: InputDecoration(labelText: label, isDense: true),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          isExpanded: true,
-          value: value,
-          items: [
-            for (final v in values)
-              DropdownMenuItem(value: v, child: Text(naming(v))),
-          ],
-          onChanged: (v) => onChanged(v ?? value),
-        ),
+      decoration: const InputDecoration(isDense: true),
+      child: Row(
+        children: [
+          Text(label),
+          const SizedBox(width: CockpitSpacing.sm),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<T>(
+                isExpanded: true,
+                value: value,
+                items: [
+                  for (final v in values)
+                    DropdownMenuItem(value: v, child: Text(naming(v))),
+                ],
+                onChanged: (v) => onChanged(v ?? value),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
