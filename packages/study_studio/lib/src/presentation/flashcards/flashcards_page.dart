@@ -318,7 +318,6 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     void soon(String l) => ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text('$l — coming soon')));
     return Padding(
