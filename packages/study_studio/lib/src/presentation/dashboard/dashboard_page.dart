@@ -1144,8 +1144,8 @@ class _KnowledgeSnapshot extends StatelessWidget {
                 ),
               ),
               InkWell(
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Knowledge Graph — Phase 2')),
+                onTap: () => context.go(
+                  '/study/${connected.studioId}/knowledge-graph',
                 ),
                 child: Row(
                   children: [
