@@ -151,55 +151,10 @@ async def run_ingest(
             }
             for i, piece in enumerate(pieces)
         ]
+        # Ingest = extract → chunk → embed → store vectors. Study-object
+        # generation is a separate studio-level pass (run_studio_build) that runs
+        # ONCE over all uploaded files, so lessons cover the combined material.
         written = await vectorstore.insert_chunks(vector, rows=rows)
-
-        # Generate Study Objects (topics/flashcards/quizzes) from the chunks.
-        # Resolve the real OpenRouter key/model from the shared octopilot DB
-        # (same as /ask) so generation uses the LLM, not the offline stub. Falls
-        # back to env, then to the deterministic stub. Best-effort — never fails
-        # the ingest job.
-        try:
-            from ..db import SharedSession
-
-            api_key = settings.openrouter_api_key
-            model = settings.openrouter_model
-            if SharedSession is not None:
-                async with SharedSession() as shared:
-                    api_key, primary = await llm.resolve_credentials(shared)
-                    # Use the FAST secondary model for bulk generation (many
-                    # per-lesson calls); the primary stays for interactive /ask.
-                    model = await llm.get_setting(shared, "secondary_model", primary)
-
-            topics = await generate.generate_topics(
-                chunks=pieces,
-                studio_id=str(document.studio_id),
-                api_key=api_key,
-                model=model,
-                user_id=document.user_id,
-                vector=vector,
-            )
-            await generate.persist_topics(
-                cockpit,
-                studio_id=document.studio_id,
-                user_id=document.user_id,
-                topics=topics,
-            )
-
-            # Scenario Mode — application scenarios (best-effort, own try below).
-            scenarios = await generate.generate_scenarios(
-                chunks=pieces,
-                studio_id=str(document.studio_id),
-                api_key=api_key,
-                model=model,
-            )
-            await generate.persist_scenarios(
-                cockpit,
-                studio_id=document.studio_id,
-                user_id=document.user_id,
-                scenarios=scenarios,
-            )
-        except Exception:  # noqa: BLE001 — generation is best-effort
-            pass
 
         await _set_job(cockpit, job_id, status="done", chunks_written=written)
         await cockpit.execute(
@@ -217,6 +172,108 @@ async def run_ingest(
 async def _set_job(session: AsyncSession, job_id: uuid.UUID, **values) -> None:
     await session.execute(update(IngestJob).where(IngestJob.id == job_id).values(**values))
     await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Studio-level build — ONE generation pass over all ingested material
+# ---------------------------------------------------------------------------
+async def run_studio_build(*, build_id: uuid.UUID) -> None:
+    """Generate the studio's Study Objects from the COMBINED material of every
+    uploaded file, persisting lessons incrementally so the client fills in live.
+
+    Runs in its own DB sessions (background task). Progress + counts are tracked
+    on the StudioBuild row, which the client streams for a live progress banner.
+    """
+    from ..db import CockpitSession, SharedSession, VectorSession
+    from ..models.cockpit import Document, StudioBuild
+
+    settings = get_settings()
+
+    async def _set(**values) -> None:
+        async with CockpitSession() as s:
+            await s.execute(
+                update(StudioBuild).where(StudioBuild.id == build_id).values(**values)
+            )
+            await s.commit()
+
+    async with CockpitSession() as cockpit:
+        build = await cockpit.get(StudioBuild, build_id)
+        if build is None:
+            return
+        studio_id = build.studio_id
+        user_id = build.user_id
+        # Filename map for citations (document_id -> filename).
+        docs = await cockpit.execute(
+            select(Document.id, Document.filename).where(Document.studio_id == studio_id)
+        )
+        filename_map = {str(i): n for i, n in docs.all()}
+
+    try:
+        await _set(status="extracting", stage="Reading your materials")
+        async with VectorSession() as vector:
+            pieces = await vectorstore.fetch_studio_chunks(
+                vector, studio_id=studio_id, user_id=user_id
+            )
+        if not pieces:
+            await _set(status="failed", error="No material was ingested.")
+            return
+
+        api_key = settings.openrouter_api_key
+        model = settings.openrouter_model
+        if SharedSession is not None:
+            async with SharedSession() as shared:
+                api_key, primary = await llm.resolve_credentials(shared)
+                model = await llm.get_setting(shared, "secondary_model", primary)
+
+        # Fresh slate, then live-fill as each lesson lands.
+        async with CockpitSession() as s:
+            await generate.clear_topics(s, studio_id=studio_id)
+        await _set(status="generating", stage="Writing your lessons")
+
+        async def on_outline(total: int) -> None:
+            await _set(lessons_total=total)
+
+        async def on_topic(ordinal: int, topic: dict) -> None:
+            # Own session per call — lessons complete concurrently.
+            async with CockpitSession() as s:
+                await generate.add_topic(
+                    s, studio_id=studio_id, user_id=user_id,
+                    ordinal=ordinal, payload=topic,
+                )
+                await s.execute(
+                    update(StudioBuild)
+                    .where(StudioBuild.id == build_id)
+                    .values(lessons_done=StudioBuild.lessons_done + 1)
+                )
+                await s.commit()
+
+        await generate.generate_topics(
+            chunks=pieces,
+            studio_id=str(studio_id),
+            api_key=api_key,
+            model=model,
+            user_id=user_id,
+            filename_map=filename_map,
+            on_outline=on_outline,
+            on_topic=on_topic,
+        )
+
+        # Scenario Mode — best-effort, doesn't block "done".
+        await _set(status="scenarios", stage="Building scenarios")
+        try:
+            scenarios = await generate.generate_scenarios(
+                chunks=pieces, studio_id=str(studio_id), api_key=api_key, model=model
+            )
+            async with CockpitSession() as s:
+                await generate.persist_scenarios(
+                    s, studio_id=studio_id, user_id=user_id, scenarios=scenarios
+                )
+        except Exception:  # noqa: BLE001
+            pass
+
+        await _set(status="done", stage="Ready")
+    except Exception as exc:  # noqa: BLE001
+        await _set(status="failed", error=str(exc))
 
 
 # ---------------------------------------------------------------------------

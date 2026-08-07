@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:cockpit_ui/cockpit_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../application/providers.dart';
+import '../../data/api/upload_api.dart';
 import '../../domain/entities/studio.dart';
 import '../../domain/entities/topic.dart';
 import '../format.dart';
@@ -17,29 +20,41 @@ import '../widgets/studio_scaffold.dart';
 /// and surface the knowledge snapshot. Driven entirely by the [Studio] so it
 /// works for any course. Same visual language as Screens 1–4 + Outfit.
 class DashboardPage extends ConsumerWidget {
-  const DashboardPage({super.key, required this.studioId});
+  const DashboardPage({super.key, required this.studioId, this.buildId});
 
   final String studioId;
+
+  /// When set (via `?building=<id>`), the studio is generating — show a live
+  /// progress banner and refresh as lessons land, instead of a blocking spinner.
+  final String? buildId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(studioProvider(studioId));
 
+    final content = async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (studio) => isDesktop(context)
+          ? _DashboardDesktop(studio: studio)
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: _DashboardBody(studio: studio),
+              ),
+            ),
+    );
+
     return StudioShell(
       selectedIndex: 1,
       child: SafeArea(
         bottom: false,
-        child: async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
-          data: (studio) => isDesktop(context)
-              ? _DashboardDesktop(studio: studio)
-              : Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 480),
-                    child: _DashboardBody(studio: studio),
-                  ),
-                ),
+        child: Column(
+          children: [
+            if (buildId != null)
+              _BuildBanner(studioId: studioId, buildId: buildId!),
+            Expanded(child: content),
+          ],
         ),
       ),
     );
@@ -278,6 +293,156 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: CockpitSpacing.xs),
           _StudioMenu(studio: studio),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Live build banner — polls the studio build and fills in lessons as they land
+// ---------------------------------------------------------------------------
+
+class _BuildBanner extends ConsumerStatefulWidget {
+  const _BuildBanner({required this.studioId, required this.buildId});
+  final String studioId;
+  final String buildId;
+
+  @override
+  ConsumerState<_BuildBanner> createState() => _BuildBannerState();
+}
+
+class _BuildBannerState extends ConsumerState<_BuildBanner> {
+  Timer? _timer;
+  BuildSnapshot? _snap;
+  bool _dismissed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _poll();
+    _timer = Timer.periodic(const Duration(milliseconds: 1600), (_) => _poll());
+  }
+
+  Future<void> _poll() async {
+    final api = ref.read(uploadApiProvider);
+    if (api == null) {
+      _timer?.cancel();
+      return;
+    }
+    try {
+      final s = await api.buildSnapshot(
+        studioId: widget.studioId,
+        buildId: widget.buildId,
+      );
+      if (!mounted) return;
+      setState(() => _snap = s);
+      // Refresh the studio so newly-written lessons appear live.
+      ref.invalidate(studioProvider(widget.studioId));
+      if (!s.inProgress) {
+        _timer?.cancel();
+        if (s.isDone && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Your studio is ready ✨')),
+          );
+        }
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) setState(() => _dismissed = true);
+        });
+      }
+    } catch (_) {
+      // Transient network/DB hiccup — keep polling.
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _snap;
+    if (_dismissed || s == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final total = s.lessonsTotal;
+    final done = s.lessonsDone;
+    final frac = total > 0 ? (done / total).clamp(0.0, 1.0) : null;
+    final accent = s.isFailed ? scheme.error : scheme.primary;
+    final label = s.isFailed
+        ? 'Build failed — please try again'
+        : s.isDone
+            ? 'Your studio is ready'
+            : (total > 0 ? '${s.stage} — $done of $total lessons' : s.stage);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        CockpitSpacing.md,
+        CockpitSpacing.sm,
+        CockpitSpacing.md,
+        0,
+      ),
+      padding: const EdgeInsets.all(CockpitSpacing.md),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(CockpitRadii.lg),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (s.inProgress)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2.4, color: accent),
+                )
+              else
+                Icon(
+                  s.isFailed ? Icons.error_outline : Icons.check_circle,
+                  size: 20,
+                  color: accent,
+                ),
+              const SizedBox(width: CockpitSpacing.sm),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge
+                      ?.copyWith(color: accent, fontWeight: FontWeight.w700),
+                ),
+              ),
+              if (s.inProgress && total > 0)
+                Text(
+                  '${((frac ?? 0) * 100).round()}%',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: accent, fontWeight: FontWeight.w700),
+                ),
+            ],
+          ),
+          if (s.inProgress) ...[
+            const SizedBox(height: CockpitSpacing.sm),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(CockpitRadii.pill),
+              child: LinearProgressIndicator(
+                value: frac,
+                minHeight: 6,
+                backgroundColor: scheme.surfaceContainerHighest,
+                color: accent,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'You can keep browsing — lessons appear as they’re ready.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
         ],
       ),
     );

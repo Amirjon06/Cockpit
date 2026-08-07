@@ -67,8 +67,10 @@ class StudyStudioModule extends CockpitModule {
         GoRoute(path: 'welcome', builder: (_, _) => const WelcomeBackPage()),
         GoRoute(
           path: ':studioId',
-          builder: (_, state) =>
-              DashboardPage(studioId: state.pathParameters['studioId']!),
+          builder: (_, state) => DashboardPage(
+            studioId: state.pathParameters['studioId']!,
+            buildId: state.uri.queryParameters['building'],
+          ),
           routes: [
             GoRoute(
               path: 'ready',

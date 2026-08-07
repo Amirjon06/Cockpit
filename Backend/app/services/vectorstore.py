@@ -47,6 +47,26 @@ async def insert_chunks(
     return len(rows)
 
 
+async def fetch_studio_chunks(
+    session: AsyncSession,
+    *,
+    studio_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> list[str]:
+    """All chunk texts for a studio, ordered by document then position.
+
+    This is the combined material for the studio-level generation pass, so the
+    lessons cover every uploaded file rather than just the last one."""
+    result = await session.execute(
+        text(
+            "SELECT content FROM chunks WHERE studio_id = :sid AND user_id = :uid "
+            "ORDER BY document_id, ordinal"
+        ),
+        {"sid": str(studio_id), "uid": str(user_id)},
+    )
+    return [row.content for row in result]
+
+
 async def delete_studio_chunks(
     session: AsyncSession,
     *,

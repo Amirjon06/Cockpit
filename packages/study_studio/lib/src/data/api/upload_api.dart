@@ -49,4 +49,56 @@ class UploadApi {
   }) async {
     await _sse.get('/studios/$studioId/build/$jobId');
   }
+
+  /// Kick off the studio-level generation pass over ALL uploaded files; returns
+  /// the build id. Runs in the background — poll [buildSnapshot] for progress.
+  Future<String> startBuild({required String studioId}) async {
+    final events = await _sse.post('/studios/$studioId/build');
+    final data = events.firstWhere(
+      (e) => e.event == 'data',
+      orElse: () => throw SseException('Build did not start'),
+    );
+    return data.data['buildId'] as String;
+  }
+
+  /// One-shot current build state — the dashboard polls this for a live banner.
+  Future<BuildSnapshot> buildSnapshot({
+    required String studioId,
+    required String buildId,
+  }) async {
+    final events = await _sse.get(
+      '/studios/$studioId/build-status/$buildId',
+      query: {'snapshot': '1'},
+    );
+    final p = events.firstWhere(
+      (e) => e.event == 'progress',
+      orElse: () => throw SseException('No build status'),
+    );
+    final d = p.data;
+    return BuildSnapshot(
+      status: d['status'] as String? ?? 'queued',
+      stage: d['stage'] as String? ?? '',
+      lessonsDone: (d['lessonsDone'] as num?)?.toInt() ?? 0,
+      lessonsTotal: (d['lessonsTotal'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// A snapshot of a studio build's progress.
+class BuildSnapshot {
+  const BuildSnapshot({
+    required this.status,
+    required this.stage,
+    required this.lessonsDone,
+    required this.lessonsTotal,
+  });
+
+  final String status; // queued|extracting|generating|scenarios|done|failed
+  final String stage;
+  final int lessonsDone;
+  final int lessonsTotal;
+
+  bool get isDone => status == 'done';
+  bool get isFailed => status == 'failed';
+  bool get inProgress => !isDone && !isFailed;
 }

@@ -12,7 +12,7 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
@@ -27,6 +27,7 @@ from ..models.cockpit import (
     GeneratedTopic,
     IngestJob,
     Studio,
+    StudioBuild,
 )
 from ..seed import seed_studios
 from ..services import llm, rag, vectorstore
@@ -302,6 +303,103 @@ async def build_progress(
                 return
             await asyncio.sleep(0.5)
         yield error("Ingestion timed out")
+
+    return EventSourceResponse(gen())
+
+
+@router.post("/studios/{studio_id}/build")
+async def start_studio_build(
+    studio_id: str,
+    background: BackgroundTasks,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> EventSourceResponse:
+    """Kick off the studio-level generation pass over ALL uploaded material and
+    return its build id. The client streams `/build-status/{buildId}` for live
+    progress while the studio fills in — no blocking wait on a spinner."""
+
+    async def gen() -> AsyncIterator[dict]:
+        try:
+            sid = uuid.UUID(studio_id)
+        except ValueError:
+            yield error(f"Studio {studio_id} not found")
+            return
+        try:
+            async with CockpitSession() as cockpit:
+                row = await cockpit.get(Studio, sid)
+                if row is None or row.user_id != user_id:
+                    yield error(f"Studio {studio_id} not found")
+                    return
+                build = StudioBuild(studio_id=sid, user_id=user_id, status="queued")
+                cockpit.add(build)
+                await cockpit.commit()
+                await cockpit.refresh(build)
+                build_id = build.id
+            background.add_task(rag.run_studio_build, build_id=build_id)
+            yield event("data", {"buildId": str(build_id), "studioId": studio_id})
+            yield done()
+        except Exception as exc:  # noqa: BLE001
+            yield error(f"Could not start build: {exc}")
+
+    return EventSourceResponse(gen())
+
+
+@router.get("/studios/{studio_id}/build-status/{build_id}")
+async def studio_build_status(
+    studio_id: str,
+    build_id: uuid.UUID,
+    snapshot: bool = Query(False),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> EventSourceResponse:
+    """A studio build's live progress: stage + lessons done / total.
+
+    `snapshot=true` emits the current state once and ends — the client polls it
+    on a short timer so a buffered SSE reader still gets a live banner. Without
+    it, the stream stays open until the build finishes."""
+
+    async def snap() -> AsyncIterator[dict]:
+        async with CockpitSession() as cockpit:
+            b = await cockpit.get(StudioBuild, build_id)
+            if b is None or b.user_id != user_id:
+                yield error("Build not found")
+                return
+            yield event("progress", {
+                "status": b.status, "stage": b.stage,
+                "lessonsDone": b.lessons_done, "lessonsTotal": b.lessons_total,
+            })
+            yield done()
+
+    if snapshot:
+        return EventSourceResponse(snap())
+
+    async def gen() -> AsyncIterator[dict]:
+        last: tuple | None = None
+        for _ in range(1200):  # ~10 min ceiling at 0.5s
+            async with CockpitSession() as cockpit:
+                b = await cockpit.get(StudioBuild, build_id)
+                snap = None if b is None else (
+                    b.user_id, b.status, b.stage, b.lessons_done, b.lessons_total, b.error
+                )
+            if b is None or snap[0] != user_id:
+                yield error("Build not found")
+                return
+            _, status, stage, done_n, total_n, err = snap
+            key = (status, stage, done_n, total_n)
+            if key != last:
+                last = key
+                yield event("progress", {
+                    "status": status,
+                    "stage": stage,
+                    "lessonsDone": done_n,
+                    "lessonsTotal": total_n,
+                })
+            if status == "done":
+                yield done()
+                return
+            if status == "failed":
+                yield error(err or "Build failed")
+                return
+            await asyncio.sleep(0.5)
+        yield error("Build timed out")
 
     return EventSourceResponse(gen())
 

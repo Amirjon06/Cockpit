@@ -83,6 +83,34 @@ class IngestJob(CockpitBase):
     document: Mapped["Document"] = relationship(back_populates="jobs")
 
 
+class StudioBuild(CockpitBase):
+    """Studio-level build job — the generation pass over ALL ingested material.
+
+    Ingestion (extract/chunk/embed/store) runs per document; generation runs once
+    per studio over the combined material so lessons cover every uploaded file.
+    This row tracks that build so the client can stream live progress and let the
+    user browse while it fills in.
+    """
+
+    __tablename__ = "studio_builds"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    studio_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("studios.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    # queued | extracting | generating | scenarios | done | failed
+    status: Mapped[str] = mapped_column(String(32), default="queued")
+    stage: Mapped[str] = mapped_column(String(160), default="")  # human label
+    lessons_total: Mapped[int] = mapped_column(Integer, default=0)
+    lessons_done: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class GeneratedTopic(CockpitBase):
     """A Study Object generated from the studio's RAG chunks by the LLM.
 

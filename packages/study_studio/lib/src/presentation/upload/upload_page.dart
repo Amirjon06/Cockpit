@@ -57,7 +57,8 @@ class _UploadPageState extends ConsumerState<UploadPage> {
   }
 
   Future<void> _addFile() async {
-    final result = await FilePicker.platform.pickFiles(withData: true);
+    final result =
+        await FilePicker.platform.pickFiles(withData: true, allowMultiple: true);
     if (result == null) return;
     setState(() {
       for (final f in result.files) {
@@ -86,21 +87,27 @@ class _UploadPageState extends ConsumerState<UploadPage> {
     setState(() => _building = true);
     try {
       final studio = await ref.read(studioRepositoryProvider).createStudio(title: title);
-      String? jobId;
+      // Ingest every file (extract/chunk/embed/store) — quick, no LLM.
+      var uploaded = 0;
       for (final f in _files) {
         if (f.bytes == null) continue;
-        jobId = await upload.uploadDocument(
+        await upload.uploadDocument(
           studioId: studio.id,
           filename: f.name,
           bytes: f.bytes!,
         );
+        uploaded++;
       }
       if (!mounted) return;
-      if (jobId != null) {
-        context.go('/study/build/$jobId?studioId=${studio.id}');
-      } else {
+      if (uploaded == 0) {
         context.go('/study/${studio.id}'); // nothing to ingest → open the studio
+        return;
       }
+      // Kick off the studio-level generation over ALL files, then hand off to the
+      // dashboard which fills in live — the user isn't stuck on a spinner.
+      final buildId = await upload.startBuild(studioId: studio.id);
+      if (!mounted) return;
+      context.go('/study/${studio.id}?building=$buildId');
     } catch (e) {
       if (!mounted) return;
       setState(() => _building = false);

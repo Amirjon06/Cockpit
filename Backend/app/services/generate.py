@@ -14,12 +14,17 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from collections.abc import Awaitable, Callable
 
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.cockpit import GeneratedScenario, GeneratedTopic
 from . import llm
+
+# Live-build callbacks: outline size known, and each lesson as it completes.
+OutlineCb = Callable[[int], Awaitable[None]]
+TopicCb = Callable[[int, dict], Awaitable[None]]
 
 # --- Pass 1: outline (one cheap call decides how many lessons) --------------
 _OUTLINE_SYSTEM = (
@@ -118,7 +123,9 @@ def _parse_json(text: str):
     return None
 
 
-def _shape_topic(raw: dict, studio_id: str) -> dict:
+def _shape_topic(
+    raw: dict, studio_id: str, sources: list[dict] | None = None
+) -> dict:
     """Normalize an LLM/stub topic into a full TopicDTO dict (camelCase)."""
     topic_id = f"gen_{uuid.uuid4().hex[:10]}"
 
@@ -174,7 +181,7 @@ def _shape_topic(raw: dict, studio_id: str) -> dict:
         "relatedTopicIds": [],
         "prerequisites": [],
         "memoryHooks": raw.get("memoryHooks", []),
-        "sources": [],
+        "sources": sources or [],
         "flashcards": [_flashcard(f) for f in (raw.get("flashcards") or [])],
         "quizQuestions": [_quiz(q) for q in (raw.get("quizQuestions") or [])],
         "difficulty": int(raw.get("difficulty", 3) or 3),
@@ -247,36 +254,65 @@ async def _generate_outline(
     return out
 
 
+def _hits_to_sources(hits: list, filename_map: dict[str, str] | None) -> list[dict]:
+    """Turn retrieved chunks into TopicDTO SourceReference dicts (citations).
+
+    De-duplicates by document, keeps the top few, and trims the snippet."""
+    fmap = filename_map or {}
+    seen: set[str] = set()
+    out: list[dict] = []
+    for h in hits:
+        doc_id = str(getattr(h, "document_id", ""))
+        if doc_id in seen:
+            continue
+        seen.add(doc_id)
+        snippet = (getattr(h, "content", "") or "").strip().replace("\n", " ")
+        out.append({
+            "fileName": fmap.get(doc_id, "Uploaded material"),
+            "snippet": snippet[:220],
+            "page": None,
+        })
+        if len(out) >= 4:
+            break
+    return out
+
+
 async def _lesson_context(
     *,
-    vector: AsyncSession | None,
     user_id: uuid.UUID | None,
     studio_id_uuid: uuid.UUID | None,
     title: str,
     scope: str,
     fallback: str,
-) -> str:
-    """Retrieve the chunks most relevant to a lesson (falls back to full material)."""
-    if vector is None or user_id is None or studio_id_uuid is None:
-        return fallback
+) -> tuple[str, list]:
+    """Retrieve the chunks most relevant to a lesson (falls back to full material).
+
+    Returns (context_text, hits) so the caller can both ground the lesson and
+    attach the retrieved chunks as citations. Uses its OWN vector session per
+    call — lessons generate concurrently, and one asyncpg connection can't run
+    parallel queries."""
+    if user_id is None or studio_id_uuid is None:
+        return fallback, []
     try:
+        from ..db import VectorSession
         from .embeddings import get_embedder
         from .vectorstore import hybrid_search
 
         q = f"{title}. {scope}".strip()
         q_vec = get_embedder().embed([q])[0]
-        hits = await hybrid_search(
-            vector,
-            user_id=user_id,
-            studio_id=studio_id_uuid,
-            query_text=q,
-            query_embedding=q_vec,
-            top_k=_DETAIL_TOP_K,
-        )
+        async with VectorSession() as vector:
+            hits = await hybrid_search(
+                vector,
+                user_id=user_id,
+                studio_id=studio_id_uuid,
+                query_text=q,
+                query_embedding=q_vec,
+                top_k=_DETAIL_TOP_K,
+            )
         joined = "\n\n".join(h.content for h in hits)
-        return joined or fallback
+        return (joined or fallback), hits
     except Exception:  # noqa: BLE001 — retrieval optional; use full material
-        return fallback
+        return fallback, []
 
 
 async def generate_topics(
@@ -286,12 +322,19 @@ async def generate_topics(
     api_key: str,
     model: str,
     user_id: uuid.UUID | None = None,
-    vector: AsyncSession | None = None,
+    filename_map: dict[str, str] | None = None,
+    on_outline: "OutlineCb | None" = None,
+    on_topic: "TopicCb | None" = None,
 ) -> list[dict]:
     """Two-pass generation: outline (how many lessons) → one rich call per lesson.
 
     Each lesson gets its own LLM call grounded in the chunks retrieved for that
     lesson, so content is deep and focused instead of a thin single-call split.
+    Retrieved chunks are attached to the topic as citation sources.
+
+    Live build: `on_outline(total)` fires once the lesson count is known, and
+    `on_topic(ordinal, topic)` fires as each lesson completes — so the caller can
+    persist incrementally and stream progress while the studio fills in.
     """
     if not chunks:
         return []
@@ -306,6 +349,9 @@ async def generate_topics(
     if not outline:
         return _stub_topics(chunks, studio_id)
 
+    if on_outline is not None:
+        await on_outline(len(outline))
+
     sid_uuid: uuid.UUID | None
     try:
         sid_uuid = uuid.UUID(studio_id)
@@ -314,10 +360,9 @@ async def generate_topics(
 
     sem = asyncio.Semaphore(_DETAIL_CONCURRENCY)
 
-    async def _detail(item: dict) -> dict | None:
+    async def _detail(ordinal: int, item: dict) -> dict | None:
         async with sem:
-            context = await _lesson_context(
-                vector=vector,
+            context, hits = await _lesson_context(
                 user_id=user_id,
                 studio_id_uuid=sid_uuid,
                 title=item["title"],
@@ -339,9 +384,17 @@ async def generate_topics(
             if not isinstance(obj, dict):
                 return None
             obj.setdefault("title", item["title"])
-            return _shape_topic(obj, studio_id)
+            topic = _shape_topic(obj, studio_id, _hits_to_sources(hits, filename_map))
+            if on_topic is not None:
+                try:
+                    await on_topic(ordinal, topic)
+                except Exception:  # noqa: BLE001 — persistence best-effort per lesson
+                    pass
+            return topic
 
-    results = await asyncio.gather(*[_detail(it) for it in outline])
+    results = await asyncio.gather(
+        *[_detail(i, it) for i, it in enumerate(outline)]
+    )
     topics = [r for r in results if isinstance(r, dict)]
     return topics or _stub_topics(chunks, studio_id)
 
@@ -353,10 +406,8 @@ async def persist_topics(
     user_id: uuid.UUID,
     topics: list[dict],
 ) -> int:
-    """Replace the studio's generated topics."""
-    await cockpit.execute(
-        delete(GeneratedTopic).where(GeneratedTopic.studio_id == studio_id)
-    )
+    """Replace the studio's generated topics (one-shot)."""
+    await clear_topics(cockpit, studio_id=studio_id)
     for i, payload in enumerate(topics):
         cockpit.add(
             GeneratedTopic(
@@ -365,6 +416,31 @@ async def persist_topics(
         )
     await cockpit.commit()
     return len(topics)
+
+
+async def clear_topics(cockpit: AsyncSession, *, studio_id: uuid.UUID) -> None:
+    """Remove a studio's topics — call once before an incremental live build."""
+    await cockpit.execute(
+        delete(GeneratedTopic).where(GeneratedTopic.studio_id == studio_id)
+    )
+    await cockpit.commit()
+
+
+async def add_topic(
+    cockpit: AsyncSession,
+    *,
+    studio_id: uuid.UUID,
+    user_id: uuid.UUID,
+    ordinal: int,
+    payload: dict,
+) -> None:
+    """Insert a single topic as it finishes — the live-fill build path."""
+    cockpit.add(
+        GeneratedTopic(
+            studio_id=studio_id, user_id=user_id, ordinal=ordinal, payload=payload
+        )
+    )
+    await cockpit.commit()
 
 
 # ---------------------------------------------------------------------------
