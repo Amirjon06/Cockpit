@@ -9,8 +9,10 @@ Answering pipeline:
 
 from __future__ import annotations
 
+import base64
 import uuid
 
+import httpx
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,20 +26,78 @@ from .objectstore import get_object_store
 # ---------------------------------------------------------------------------
 # Text extraction
 # ---------------------------------------------------------------------------
-def extract_text(filename: str, mime: str, data: bytes) -> str:
+_HIRARA_TIMEOUT = 120.0
+_OFFICE_EXT = (".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls")
+_IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp", ".gif")
+_AV_EXT = (".mp3", ".wav", ".m4a", ".flac", ".ogg", ".mp4", ".mov", ".mkv", ".webm")
+
+
+async def _hirara_call(tool: str, arguments: dict) -> dict:
+    """Invoke one Hirara hub tool over its `POST /call` gateway."""
+    settings = get_settings()
+    headers = {"Content-Type": "application/json"}
+    if settings.hirara_hub_token:
+        headers["Authorization"] = f"Bearer {settings.hirara_hub_token}"
+    async with httpx.AsyncClient(timeout=_HIRARA_TIMEOUT) as client:
+        resp = await client.post(
+            f"{settings.hirara_hub_url}/call",
+            json={"name": tool, "arguments": arguments},
+            headers=headers,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def extract_text(filename: str, mime: str, data: bytes) -> str:
     """Extract plain text from an uploaded file.
 
-    Text/markdown are decoded directly. Binary formats (PDF, docx, pptx) need a
-    dedicated extractor — wire pypdf/python-docx here as the next step. We keep
-    the scaffold dependency-light and fail loudly rather than silently ingest
-    garbage bytes.
+    Text/markdown decode directly (fast path, no network). Everything else is
+    handled by the Hirara hub: PDFs via `pdf_read` (with an `ocr_read` fallback
+    for scanned/no-text-layer PDFs), Office docs via `office_read` (Markdown),
+    and images via `ocr_read`. Audio/video (STT) is not enabled yet.
     """
-    if mime.startswith("text/") or filename.lower().endswith((".txt", ".md")):
+    name = filename.lower()
+    mime = mime or ""
+
+    # Fast path: plain text / markdown.
+    if mime.startswith("text/") or name.endswith((".txt", ".md", ".markdown")):
         return data.decode("utf-8", errors="replace")
-    raise NotImplementedError(
-        f"No text extractor wired for mime={mime!r} ({filename}). "
-        "Add pypdf / python-docx in extract_text()."
-    )
+
+    b64 = base64.b64encode(data).decode()
+
+    # PDF — embedded text layer first, OCR fallback when it comes back empty.
+    if mime == "application/pdf" or name.endswith(".pdf"):
+        res = await _hirara_call("pdf_read", {"pdf_base64": b64})
+        text = (res.get("text") or "").strip()
+        if len(text) >= 20:
+            return text
+        ocr = await _hirara_call(
+            "ocr_read", {"file_base64": b64, "languages": ["en"]}
+        )
+        return (ocr.get("text") or ocr.get("markdown") or text).strip()
+
+    # Office documents → Markdown.
+    if name.endswith(_OFFICE_EXT) or "officedocument" in mime or "msword" in mime \
+            or "ms-powerpoint" in mime or "ms-excel" in mime:
+        res = await _hirara_call(
+            "office_read", {"file_base64": b64, "filename": filename}
+        )
+        return (res.get("markdown") or res.get("text") or "").strip()
+
+    # Images → OCR.
+    if mime.startswith("image/") or name.endswith(_IMAGE_EXT):
+        res = await _hirara_call(
+            "ocr_read", {"file_base64": b64, "languages": ["en"]}
+        )
+        return (res.get("text") or res.get("markdown") or "").strip()
+
+    # Audio / video — STT service not deployed yet (Hirara Phase 2).
+    if mime.startswith(("audio/", "video/")) or name.endswith(_AV_EXT):
+        raise NotImplementedError(
+            "Audio/video transcription (speech-to-text) is not enabled yet."
+        )
+
+    raise NotImplementedError(f"No text extractor for mime={mime!r} ({filename}).")
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +132,7 @@ async def run_ingest(
     await _set_job(cockpit, job_id, status="running")
     try:
         raw = get_object_store().get(document.object_key)
-        text = extract_text(document.filename, document.mime, raw)
+        text = await extract_text(document.filename, document.mime, raw)
         pieces = chunk_text(
             text, size=settings.rag_chunk_tokens, overlap=settings.rag_chunk_overlap
         )

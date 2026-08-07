@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     rag_top_k: int = 8
     rag_context_k: int = 5
 
+    # Hirara document-extraction hub (PDF / Office / OCR). The cockpit-api runs
+    # host-networked, so the gateway is reachable on loopback. Token is opt-in.
+    hirara_hub_url: str = "http://127.0.0.1:8080"
+    hirara_hub_token: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

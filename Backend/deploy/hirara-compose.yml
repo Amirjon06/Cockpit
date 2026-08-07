@@ -1,0 +1,42 @@
+# Minimal Hirara hub for Study Studio material extraction — PDF + Office + OCR.
+#
+# Deployed on the API host (host-networked cockpit-api reaches the gateway on
+# 127.0.0.1:8080). Excludes hiraracode (mounts the Docker socket = host-root
+# risk), websearch/searxng, and STT (speech-to-text — Phase 2, image not yet
+# published to GHCR). Apache-2.0: https://github.com/lucasdmarshall/Hirara
+#
+#   docker compose -f hirara-compose.yml pull
+#   docker compose -f hirara-compose.yml up -d
+#
+name: hirara
+services:
+  hirarapdf:
+    image: ghcr.io/lucasdmarshall/hirara-pdf:latest
+    restart: unless-stopped
+    networks: [hirara]
+  hiraraocr:
+    image: ghcr.io/lucasdmarshall/hirara-ocr:latest
+    restart: unless-stopped
+    volumes: [ocr-models:/data]
+    networks: [hirara]
+  hirarareader:
+    image: ghcr.io/lucasdmarshall/hirara-reader:latest
+    restart: unless-stopped
+    networks: [hirara]
+  hub:
+    image: ghcr.io/lucasdmarshall/hirara-hub:latest
+    restart: unless-stopped
+    depends_on: [hirarapdf, hiraraocr, hirarareader]
+    environment:
+      - HUB_TOKEN=${HUB_TOKEN:-}
+      - HUB_HIRARAPDF_URL=http://hirarapdf:8200
+      - HUB_HIRARAOCR_URL=http://hiraraocr:8400
+      - HUB_HIRARAREADER_URL=http://hirarareader:8500
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [hirara]
+networks:
+  hirara:
+    driver: bridge
+volumes:
+  ocr-models:
