@@ -131,6 +131,37 @@ class GeneratedTopic(CockpitBase):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class TopicProgress(CockpitBase):
+    """Per-user mastery of a generated topic, updated by quizzes and reviews.
+
+    Topics live as JSON inside GeneratedTopic (id = payload["id"], e.g. "gen_…"),
+    so this keys on that string topic id. Mastery is a rolling [0,1] value that
+    the studio DTO overlays onto each topic at load time; the Flutter app derives
+    overall mastery and weak topics from it.
+    """
+
+    __tablename__ = "topic_progress"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    studio_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("studios.id", ondelete="CASCADE"), index=True
+    )
+    topic_id: Mapped[str] = mapped_column(String(64), index=True)
+    mastery: Mapped[float] = mapped_column(default=0.0)
+    quiz_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    quiz_correct: Mapped[int] = mapped_column(Integer, default=0)
+    flashcard_reviews: Mapped[int] = mapped_column(Integer, default=0)
+    reviews: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        Index("ux_topic_progress_user_topic", "user_id", "topic_id", unique=True),
+    )
+
+
 class GeneratedScenario(CockpitBase):
     """An application scenario (Scenario Mode) generated from the studio's chunks.
 

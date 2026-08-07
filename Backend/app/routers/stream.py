@@ -30,7 +30,7 @@ from ..models.cockpit import (
     StudioBuild,
 )
 from ..seed import seed_studios
-from ..services import llm, rag, vectorstore
+from ..services import llm, progress, rag, vectorstore
 from ..services.objectstore import get_object_store
 from ..sse import done, error, event
 
@@ -38,15 +38,35 @@ router = APIRouter(tags=["sse"])
 _STUDIOS = seed_studios()
 
 
-async def _load_topics(cockpit: AsyncSession, studio_id: uuid.UUID) -> list[TopicDTO]:
-    """Load the studio's generated Study Objects (topics/flashcards/quizzes)."""
+async def _load_topics(
+    cockpit: AsyncSession,
+    studio_id: uuid.UUID,
+    user_id: uuid.UUID | None = None,
+) -> list[TopicDTO]:
+    """Load the studio's generated Study Objects, overlaying the user's real
+    mastery (from topic_progress) onto each topic's stored payload."""
     try:
         rows = await cockpit.execute(
             select(GeneratedTopic)
             .where(GeneratedTopic.studio_id == studio_id)
             .order_by(GeneratedTopic.ordinal)
         )
-        return [TopicDTO.model_validate(r.payload) for r in rows.scalars()]
+        mastery = {}
+        if user_id is not None:
+            try:
+                mastery = await progress.mastery_map(
+                    cockpit, user_id=user_id, studio_id=studio_id
+                )
+            except Exception:  # noqa: BLE001 — mastery overlay is best-effort
+                mastery = {}
+        out: list[TopicDTO] = []
+        for r in rows.scalars():
+            payload = r.payload
+            tid = payload.get("id")
+            if tid in mastery:
+                payload = {**payload, "mastery": mastery[tid]}
+            out.append(TopicDTO.model_validate(payload))
+        return out
     except Exception:  # noqa: BLE001
         return []
 
@@ -94,7 +114,7 @@ async def _db_studios_for(cockpit: AsyncSession, user_id: uuid.UUID) -> list[Stu
             out.append(
                 _db_studio_to_dto(
                     r,
-                    await _load_topics(cockpit, r.id),
+                    await _load_topics(cockpit, r.id, user_id),
                     await _load_scenarios(cockpit, r.id),
                 )
             )
@@ -186,7 +206,7 @@ async def get_studio(
                 dto = (
                     _db_studio_to_dto(
                         row,
-                        await _load_topics(cockpit, sid),
+                        await _load_topics(cockpit, sid, user_id),
                         await _load_scenarios(cockpit, sid),
                     )
                     if owned
@@ -504,21 +524,73 @@ def _ack() -> EventSourceResponse:
     return EventSourceResponse(gen())
 
 
+async def _owned_studio_uuid(
+    studio_id: str, user_id: uuid.UUID
+) -> uuid.UUID | None:
+    """Studio UUID if it exists and is owned by the user, else None (seed studios
+    have non-UUID ids and are read-only — progress isn't persisted for them)."""
+    try:
+        sid = uuid.UUID(studio_id)
+    except ValueError:
+        return None
+    async with CockpitSession() as cockpit:
+        row = await cockpit.get(Studio, sid)
+        return sid if (row is not None and row.user_id == user_id) else None
+
+
 @router.post("/studios/{studio_id}/topics/{topic_id}/quiz-result")
 async def quiz_result(
-    studio_id: str, topic_id: str, correct: bool = Query(...)
+    studio_id: str,
+    topic_id: str,
+    correct: bool = Query(...),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> EventSourceResponse:
-    # TODO: persist mastery for user-owned studios. Seed studios are read-only.
+    try:
+        sid = await _owned_studio_uuid(studio_id, user_id)
+        if sid is not None:
+            async with CockpitSession() as cockpit:
+                await progress.record_quiz(
+                    cockpit, user_id=user_id, studio_id=sid,
+                    topic_id=topic_id, correct=correct,
+                )
+    except Exception:  # noqa: BLE001 — never fail the client's ack
+        pass
     return _ack()
 
 
 @router.post("/studios/{studio_id}/topics/{topic_id}/flashcard-review")
 async def flashcard_review(
-    studio_id: str, topic_id: str, quality: float = Query(..., ge=0.0, le=1.0)
+    studio_id: str,
+    topic_id: str,
+    quality: float = Query(..., ge=0.0, le=1.0),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> EventSourceResponse:
+    try:
+        sid = await _owned_studio_uuid(studio_id, user_id)
+        if sid is not None:
+            async with CockpitSession() as cockpit:
+                await progress.record_flashcard(
+                    cockpit, user_id=user_id, studio_id=sid,
+                    topic_id=topic_id, quality=quality,
+                )
+    except Exception:  # noqa: BLE001
+        pass
     return _ack()
 
 
 @router.post("/studios/{studio_id}/topics/{topic_id}/mark-reviewed")
-async def mark_reviewed(studio_id: str, topic_id: str) -> EventSourceResponse:
+async def mark_reviewed(
+    studio_id: str,
+    topic_id: str,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> EventSourceResponse:
+    try:
+        sid = await _owned_studio_uuid(studio_id, user_id)
+        if sid is not None:
+            async with CockpitSession() as cockpit:
+                await progress.record_reviewed(
+                    cockpit, user_id=user_id, studio_id=sid, topic_id=topic_id,
+                )
+    except Exception:  # noqa: BLE001
+        pass
     return _ack()
