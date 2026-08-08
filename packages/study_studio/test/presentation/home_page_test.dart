@@ -27,10 +27,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('No studios yet — build your first one above.'),
-      findsOneWidget,
-    );
+    expect(find.text('No studios yet'), findsOneWidget);
   });
 
   testWidgets('shows error state', (tester) async {

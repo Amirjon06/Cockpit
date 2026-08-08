@@ -60,6 +60,9 @@ class FakeStudioRepository implements StudioRepository {
   }
 
   @override
+  Future<void> deleteStudio(String studioId) async {}
+
+  @override
   Future<void> recordQuizResult({
     required String studioId,
     required String topicId,

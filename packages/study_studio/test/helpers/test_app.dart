@@ -13,6 +13,7 @@ Future<void> pumpTestApp(
   List<Studio> studios = const [],
   Object? error,
   Duration delay = Duration.zero,
+  bool signedIn = true,
 }) async {
   final repository = FakeStudioRepository(
     studios: studios,
@@ -24,8 +25,10 @@ Future<void> pumpTestApp(
     ProviderScope(
       overrides: [
         studioRepositoryProvider.overrideWithValue(repository),
+        // Study Home gates on auth: signed out shows the Sign-in screen, so
+        // sign in by default to exercise the studio-list states.
         authStateProvider.overrideWith(
-          (ref) => Stream<bool>.value(false),
+          (ref) => Stream<bool>.value(signedIn),
         ),
       ],
       child: MaterialApp(

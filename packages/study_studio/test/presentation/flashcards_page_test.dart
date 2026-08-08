@@ -42,9 +42,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('No flashcards'), findsOneWidget);
+    expect(find.text('No flashcards yet'), findsOneWidget);
     expect(
-      find.text('This selection has no cards yet.'),
+      find.text('This selection has no cards to review.'),
       findsOneWidget,
     );
   });
@@ -63,8 +63,8 @@ void main() {
 
     expect(find.text('Flashcards'), findsOneWidget);
     expect(find.textContaining('Card 1 of'), findsOneWidget);
-    expect(find.text('QUESTION'), findsOneWidget);
-    expect(find.text('Show Answer'), findsOneWidget);
+    expect(find.text('Front'), findsOneWidget);
+    expect(find.text('Tap to reveal'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
