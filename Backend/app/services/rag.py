@@ -13,7 +13,7 @@ import base64
 import uuid
 
 import httpx
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
@@ -177,6 +177,67 @@ async def _set_job(session: AsyncSession, job_id: uuid.UUID, **values) -> None:
 # ---------------------------------------------------------------------------
 # Studio-level build — ONE generation pass over all ingested material
 # ---------------------------------------------------------------------------
+async def _wait_for_documents_ready(
+    *,
+    studio_id: uuid.UUID,
+    set_progress,
+    timeout_s: float = 600.0,
+    poll_s: float = 1.0,
+) -> bool:
+    """Block until every studio document is ready or failed; stream ingest stage."""
+    import asyncio
+    import time
+
+    from ..db import CockpitSession
+    from ..models.cockpit import Document
+
+    deadline = time.monotonic() + timeout_s
+    while True:
+        async with CockpitSession() as s:
+            rows = (
+                await s.execute(select(Document).where(Document.studio_id == studio_id))
+            ).scalars().all()
+        if not rows:
+            await set_progress(status="failed", error="No documents uploaded.")
+            return False
+
+        ready = [d for d in rows if d.status == "ready"]
+        failed = [d for d in rows if d.status == "failed"]
+        pending = [d for d in rows if d.status not in ("ready", "failed")]
+        total = len(rows)
+        done_n = len(ready) + len(failed)
+
+        current = pending[0].filename if pending else (ready[-1].filename if ready else "")
+        if len(current) > 64:
+            current = current[:61] + "…"
+        stage = (
+            f"Ingesting document… {len(ready)} of {total}"
+            + (f": {current}" if pending and current else "")
+        )
+        # Temporarily reuse lesson counters so progressPct can track ingest.
+        await set_progress(
+            status="extracting",
+            stage=stage[:160],
+            lessons_done=len(ready),
+            lessons_total=total,
+        )
+
+        if not pending:
+            if not ready:
+                err = failed[0].filename if failed else "ingest"
+                await set_progress(
+                    status="failed",
+                    error=f"Documents failed to ingest ({err}).",
+                )
+                return False
+            return True
+
+        if time.monotonic() >= deadline:
+            await set_progress(status="failed", error="Timed out ingesting documents.")
+            return False
+        await asyncio.sleep(poll_s)
+
+
 async def run_studio_build(*, build_id: uuid.UUID) -> None:
     """Generate the studio's Study Objects from the COMBINED material of every
     uploaded file, persisting lessons incrementally so the client fills in live.
@@ -209,7 +270,17 @@ async def run_studio_build(*, build_id: uuid.UUID) -> None:
         filename_map = {str(i): n for i, n in docs.all()}
 
     try:
-        await _set(status="extracting", stage="Reading your materials")
+        # Upload page hands off immediately; wait here so the Home banner can
+        # show "Ingesting document…" instead of racing an empty vector store.
+        if not await _wait_for_documents_ready(studio_id=studio_id, set_progress=_set):
+            return
+
+        await _set(
+            status="extracting",
+            stage="Reading your materials…",
+            lessons_done=0,
+            lessons_total=0,
+        )
         async with VectorSession() as vector:
             pieces = await vectorstore.fetch_studio_chunks(
                 vector, studio_id=studio_id, user_id=user_id
@@ -228,22 +299,39 @@ async def run_studio_build(*, build_id: uuid.UUID) -> None:
         # Fresh slate, then live-fill as each lesson lands.
         async with CockpitSession() as s:
             await generate.clear_topics(s, studio_id=studio_id)
-        await _set(status="generating", stage="Writing your lessons")
+        await _set(status="generating", stage="Building studio…")
 
         async def on_outline(total: int) -> None:
-            await _set(lessons_total=total)
+            await _set(
+                lessons_total=total,
+                stage=f"Getting lessons… 0 of {total}",
+            )
 
         async def on_topic(ordinal: int, topic: dict) -> None:
             # Own session per call — lessons complete concurrently.
+            title = str(topic.get("title") or "lesson").strip() or "lesson"
+            if len(title) > 72:
+                title = title[:69] + "…"
             async with CockpitSession() as s:
                 await generate.add_topic(
                     s, studio_id=studio_id, user_id=user_id,
                     ordinal=ordinal, payload=topic,
                 )
+                row = await s.get(StudioBuild, build_id)
+                total = int(row.lessons_total) if row is not None else 0
+                done = (int(row.lessons_done) if row is not None else 0) + 1
+                stage = (
+                    f"Getting lessons… {done} of {total}: {title}"
+                    if total > 0
+                    else f"Getting lessons… {title}"
+                )
                 await s.execute(
                     update(StudioBuild)
                     .where(StudioBuild.id == build_id)
-                    .values(lessons_done=StudioBuild.lessons_done + 1)
+                    .values(
+                        lessons_done=StudioBuild.lessons_done + 1,
+                        stage=stage[:160],
+                    )
                 )
                 await s.commit()
 
@@ -259,7 +347,7 @@ async def run_studio_build(*, build_id: uuid.UUID) -> None:
         )
 
         # Scenario Mode — best-effort, doesn't block "done".
-        await _set(status="scenarios", stage="Building scenarios")
+        await _set(status="scenarios", stage="Building scenarios…")
         try:
             scenarios = await generate.generate_scenarios(
                 chunks=pieces, studio_id=str(studio_id), api_key=api_key, model=model
@@ -271,7 +359,7 @@ async def run_studio_build(*, build_id: uuid.UUID) -> None:
         except Exception:  # noqa: BLE001
             pass
 
-        await _set(status="done", stage="Ready")
+        await _set(status="done", stage="Studio ready")
     except Exception as exc:  # noqa: BLE001
         await _set(status="failed", error=str(exc))
 

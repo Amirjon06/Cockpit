@@ -38,6 +38,41 @@ router = APIRouter(tags=["sse"])
 _STUDIOS = seed_studios()
 
 
+def _build_progress_pct(status: str, lessons_done: int, lessons_total: int) -> float:
+    """Weighted real progress for the live Home build banner.
+
+    extracting reuses lessons_done/total as documents ready/total while ingesting.
+    """
+    if status == "done":
+        return 1.0
+    if status == "failed":
+        return 0.0
+    if status == "queued":
+        return 0.02
+    if status == "extracting":
+        if lessons_total > 0:
+            frac = max(0.0, min(1.0, lessons_done / lessons_total))
+            return round(0.02 + 0.18 * frac, 4)  # 2% → 20%
+        return 0.08
+    if status == "generating":
+        if lessons_total <= 0:
+            return 0.25
+        frac = max(0.0, min(1.0, lessons_done / lessons_total))
+        return round(0.25 + 0.60 * frac, 4)  # 25% → 85%
+    if status == "scenarios":
+        return 0.92
+    return 0.05
+
+
+def _build_progress_payload(b: StudioBuild) -> dict:
+    return {
+        "status": b.status,
+        "stage": b.stage,
+        "lessonsDone": b.lessons_done,
+        "lessonsTotal": b.lessons_total,
+        "progressPct": _build_progress_pct(b.status, b.lessons_done, b.lessons_total),
+    }
+
 async def _load_topics(
     cockpit: AsyncSession,
     studio_id: uuid.UUID,
@@ -151,16 +186,11 @@ async def list_studios(
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> EventSourceResponse:
     async def gen() -> AsyncIterator[dict]:
-        # The user's own (persisted) studios first, then the seed demos.
-        # Short-lived session inside the generator: a DB session injected via
-        # Depends into an SSE (EventSourceResponse) endpoint isn't checked back
-        # in cleanly on stream teardown and gets GC-terminated (log spam +
-        # connection churn). See /me for the same pattern.
+        # Owned studios only — seed demos (bio/mbr) used to be appended here and
+        # could never be deleted, which made them look like sticky real studios.
         async with CockpitSession() as cockpit:
             studios = await _db_studios_for(cockpit, user_id)
         for studio in studios:
-            yield event("item", studio)
-        for studio in _STUDIOS.values():
             yield event("item", studio)
         yield done()
 
@@ -349,7 +379,12 @@ async def start_studio_build(
                 if row is None or row.user_id != user_id:
                     yield error(f"Studio {studio_id} not found")
                     return
-                build = StudioBuild(studio_id=sid, user_id=user_id, status="queued")
+                build = StudioBuild(
+                    studio_id=sid,
+                    user_id=user_id,
+                    status="queued",
+                    stage="Starting…",
+                )
                 cockpit.add(build)
                 await cockpit.commit()
                 await cockpit.refresh(build)
@@ -382,10 +417,7 @@ async def studio_build_status(
             if b is None or b.user_id != user_id:
                 yield error("Build not found")
                 return
-            yield event("progress", {
-                "status": b.status, "stage": b.stage,
-                "lessonsDone": b.lessons_done, "lessonsTotal": b.lessons_total,
-            })
+            yield event("progress", _build_progress_payload(b))
             yield done()
 
     if snapshot:
@@ -411,6 +443,7 @@ async def studio_build_status(
                     "stage": stage,
                     "lessonsDone": done_n,
                     "lessonsTotal": total_n,
+                    "progressPct": _build_progress_pct(status, done_n, total_n),
                 })
             if status == "done":
                 yield done()
