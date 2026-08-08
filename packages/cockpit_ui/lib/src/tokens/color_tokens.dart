@@ -28,15 +28,18 @@ class CockpitColors {
   final Color error;
   final Color info;
 
-  /// Default Octopilot brand palette.
+  /// Default Octopilot brand palette — a **black / red / warm-white** identity.
+  /// Red is the single accent; surfaces are near-black (dark) or warm off-white
+  /// (light); text is a soft, yellow-hued white. The exact surface/onSurface
+  /// values are applied per-brightness in [CockpitTheme].
   static const CockpitColors brand = CockpitColors(
-    primary: Color(0xFF4F46E5), // indigo 600
-    secondary: Color(0xFF0EA5E9), // sky 500
-    tertiary: Color(0xFFF59E0B), // amber 500
-    success: Color(0xFF16A34A),
-    warning: Color(0xFFF59E0B),
-    error: Color(0xFFDC2626),
-    info: Color(0xFF2563EB),
+    primary: Color(0xFFE11D2E), // signal red
+    secondary: Color(0xFFF04E3E), // warm coral-red
+    tertiary: Color(0xFFE8B84B), // warm gold (the soft-yellow accent)
+    success: Color(0xFF3FB27F),
+    warning: Color(0xFFE8B84B),
+    error: Color(0xFFFF6B5C),
+    info: Color(0xFF5B8DEF),
   );
 
   CockpitColors copyWith({

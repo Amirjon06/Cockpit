@@ -75,11 +75,21 @@ class UploadApi {
       orElse: () => throw SseException('No build status'),
     );
     final d = p.data;
+    final status = d['status'] as String? ?? 'queued';
+    final lessonsDone = (d['lessonsDone'] as num?)?.toInt() ?? 0;
+    final lessonsTotal = (d['lessonsTotal'] as num?)?.toInt() ?? 0;
+    final pct = (d['progressPct'] as num?)?.toDouble() ??
+        BuildSnapshot.estimateProgress(
+          status: status,
+          lessonsDone: lessonsDone,
+          lessonsTotal: lessonsTotal,
+        );
     return BuildSnapshot(
-      status: d['status'] as String? ?? 'queued',
+      status: status,
       stage: d['stage'] as String? ?? '',
-      lessonsDone: (d['lessonsDone'] as num?)?.toInt() ?? 0,
-      lessonsTotal: (d['lessonsTotal'] as num?)?.toInt() ?? 0,
+      lessonsDone: lessonsDone,
+      lessonsTotal: lessonsTotal,
+      progressPct: pct,
     );
   }
 }
@@ -91,6 +101,7 @@ class BuildSnapshot {
     required this.stage,
     required this.lessonsDone,
     required this.lessonsTotal,
+    required this.progressPct,
   });
 
   final String status; // queued|extracting|generating|scenarios|done|failed
@@ -98,7 +109,40 @@ class BuildSnapshot {
   final int lessonsDone;
   final int lessonsTotal;
 
+  /// 0..1 weighted real progress from the server (or [estimateProgress]).
+  final double progressPct;
+
   bool get isDone => status == 'done';
   bool get isFailed => status == 'failed';
   bool get inProgress => !isDone && !isFailed;
+
+  /// Mirrors backend `_build_progress_pct` when the field is absent.
+  static double estimateProgress({
+    required String status,
+    required int lessonsDone,
+    required int lessonsTotal,
+  }) {
+    switch (status) {
+      case 'done':
+        return 1;
+      case 'failed':
+        return 0;
+      case 'queued':
+        return 0.02;
+      case 'extracting':
+        if (lessonsTotal > 0) {
+          final frac = (lessonsDone / lessonsTotal).clamp(0.0, 1.0);
+          return 0.02 + 0.18 * frac;
+        }
+        return 0.08;
+      case 'generating':
+        if (lessonsTotal <= 0) return 0.25;
+        final frac = (lessonsDone / lessonsTotal).clamp(0.0, 1.0);
+        return 0.25 + 0.60 * frac;
+      case 'scenarios':
+        return 0.92;
+      default:
+        return 0.05;
+    }
+  }
 }

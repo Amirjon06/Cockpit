@@ -13,14 +13,36 @@ abstract final class CockpitTheme {
     required CockpitFonts fonts,
     required Brightness brightness,
   }) {
+    final isDark = brightness == Brightness.dark;
+
     final scheme = ColorScheme.fromSeed(
       seedColor: colors.primary,
       brightness: brightness,
     ).copyWith(
       primary: colors.primary,
+      onPrimary: const Color(0xFFFFF7EC), // warm white on red
       secondary: colors.secondary,
       tertiary: colors.tertiary,
       error: colors.error,
+      // Warm, near-monochrome surface ramp. Dark = near-black with a hint of
+      // warmth; light = soft yellow-hued white. Text is a soft off-white / warm
+      // near-black so nothing is ever a clinical pure #FFF / #000.
+      surface: isDark ? const Color(0xFF0C0B0A) : const Color(0xFFF6F1E7),
+      onSurface: isDark ? const Color(0xFFF4EEE0) : const Color(0xFF1B1813),
+      onSurfaceVariant:
+          isDark ? const Color(0xFFA99F8E) : const Color(0xFF6E675B),
+      surfaceContainerLowest:
+          isDark ? const Color(0xFF080706) : const Color(0xFFFFFFFF),
+      surfaceContainerLow:
+          isDark ? const Color(0xFF141210) : const Color(0xFFFDFAF2),
+      surfaceContainer:
+          isDark ? const Color(0xFF191712) : const Color(0xFFF1EBDD),
+      surfaceContainerHigh:
+          isDark ? const Color(0xFF201D17) : const Color(0xFFECE5D5),
+      surfaceContainerHighest:
+          isDark ? const Color(0xFF29251E) : const Color(0xFFE6DECD),
+      outline: isDark ? const Color(0xFF423C32) : const Color(0xFFC9C0AE),
+      outlineVariant: isDark ? const Color(0xFF262119) : const Color(0xFFDED6C6),
     );
 
     final base = ThemeData(

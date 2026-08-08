@@ -10,11 +10,11 @@ class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   static const _swatches = [
-    Color(0xFF4F46E5), // indigo
-    Color(0xFF0EA5E9), // sky
-    Color(0xFF16A34A), // green
-    Color(0xFFDC2626), // red
+    Color(0xFFE11D2E), // signal red (brand default)
     Color(0xFFEA580C), // orange
+    Color(0xFFE8B84B), // gold
+    Color(0xFF16A34A), // green
+    Color(0xFF0EA5E9), // sky
     Color(0xFF7C3AED), // violet
   ];
 

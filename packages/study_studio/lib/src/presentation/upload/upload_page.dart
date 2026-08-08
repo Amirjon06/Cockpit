@@ -87,7 +87,8 @@ class _UploadPageState extends ConsumerState<UploadPage> {
     setState(() => _building = true);
     try {
       final studio = await ref.read(studioRepositoryProvider).createStudio(title: title);
-      // Ingest every file (extract/chunk/embed/store) — quick, no LLM.
+      // Upload only — ingest + generation progress runs on the studio Home
+      // banner. The API build waits for ingest so we don't race an empty store.
       var uploaded = 0;
       for (final f in _files) {
         if (f.bytes == null) continue;
@@ -100,11 +101,9 @@ class _UploadPageState extends ConsumerState<UploadPage> {
       }
       if (!mounted) return;
       if (uploaded == 0) {
-        context.go('/study/${studio.id}'); // nothing to ingest → open the studio
+        context.go('/study/${studio.id}');
         return;
       }
-      // Kick off the studio-level generation over ALL files, then hand off to the
-      // dashboard which fills in live — the user isn't stuck on a spinner.
       final buildId = await upload.startBuild(studioId: studio.id);
       if (!mounted) return;
       context.go('/study/${studio.id}?building=$buildId');

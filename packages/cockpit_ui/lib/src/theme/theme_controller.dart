@@ -44,7 +44,8 @@ class ThemeController extends Notifier<ThemeState> {
   ThemeState build() => const ThemeState(
         colors: CockpitColors.brand,
         fonts: CockpitFonts.brand,
-        mode: ThemeMode.system,
+        // Dark is the brand default; users can switch to light in Settings.
+        mode: ThemeMode.dark,
       );
 
   void setColors(CockpitColors colors) => state = state.copyWith(colors: colors);

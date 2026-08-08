@@ -321,7 +321,7 @@ class _BuildBannerState extends ConsumerState<_BuildBanner> {
   void initState() {
     super.initState();
     _poll();
-    _timer = Timer.periodic(const Duration(milliseconds: 1600), (_) => _poll());
+    _timer = Timer.periodic(const Duration(milliseconds: 900), (_) => _poll());
   }
 
   Future<void> _poll() async {
@@ -369,13 +369,16 @@ class _BuildBannerState extends ConsumerState<_BuildBanner> {
     final scheme = theme.colorScheme;
     final total = s.lessonsTotal;
     final done = s.lessonsDone;
-    final frac = total > 0 ? (done / total).clamp(0.0, 1.0) : null;
+    final frac = s.progressPct.clamp(0.0, 1.0);
+    final pctLabel = '${(frac * 100).round()}%';
     final accent = s.isFailed ? scheme.error : scheme.primary;
     final label = s.isFailed
-        ? 'Build failed — please try again'
+        ? (s.stage.isNotEmpty ? s.stage : 'Build failed — please try again')
         : s.isDone
-            ? 'Your studio is ready'
-            : (total > 0 ? '${s.stage} — $done of $total lessons' : s.stage);
+            ? (s.stage.isNotEmpty ? s.stage : 'Your studio is ready')
+            : (s.stage.isNotEmpty
+                ? s.stage
+                : 'Building your study studio…');
 
     return Container(
       margin: const EdgeInsets.fromLTRB(
@@ -411,15 +414,15 @@ class _BuildBannerState extends ConsumerState<_BuildBanner> {
               Expanded(
                 child: Text(
                   label,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelLarge
                       ?.copyWith(color: accent, fontWeight: FontWeight.w700),
                 ),
               ),
-              if (s.inProgress && total > 0)
+              if (s.inProgress || s.isDone)
                 Text(
-                  '${((frac ?? 0) * 100).round()}%',
+                  pctLabel,
                   style: theme.textTheme.labelMedium
                       ?.copyWith(color: accent, fontWeight: FontWeight.w700),
                 ),
@@ -436,15 +439,129 @@ class _BuildBannerState extends ConsumerState<_BuildBanner> {
                 color: accent,
               ),
             ),
+            const SizedBox(height: CockpitSpacing.sm),
+            _BuildPhaseRow(status: s.status, lessonsDone: done, lessonsTotal: total),
             const SizedBox(height: 4),
             Text(
-              'You can keep browsing — lessons appear as they’re ready.',
+              s.status == 'extracting' && total > 0
+                  ? 'Ingesting files: $done of $total — you can keep browsing.'
+                  : total > 0 && s.status == 'generating'
+                      ? 'Lessons ready: $done of $total — keep browsing while AI works.'
+                      : 'You can keep browsing — lessons appear as they’re ready.',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _BuildPhaseRow extends StatelessWidget {
+  const _BuildPhaseRow({
+    required this.status,
+    required this.lessonsDone,
+    required this.lessonsTotal,
+  });
+
+  final String status;
+  final int lessonsDone;
+  final int lessonsTotal;
+
+  static const _phases = <(String, String)>[
+    ('extracting', 'Materials'),
+    ('generating', 'Lessons'),
+    ('scenarios', 'Scenarios'),
+    ('done', 'Ready'),
+  ];
+
+  int get _activeIndex {
+    switch (status) {
+      case 'queued':
+      case 'extracting':
+        return 0;
+      case 'generating':
+        return 1;
+      case 'scenarios':
+        return 2;
+      case 'done':
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final active = _activeIndex;
+    return Row(
+      children: [
+        for (var i = 0; i < _phases.length; i++) ...[
+          if (i > 0)
+            Expanded(
+              child: Container(
+                height: 2,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                color: i <= active
+                    ? scheme.primary.withValues(alpha: 0.55)
+                    : scheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ),
+          _PhaseChip(
+            label: i == 0 && lessonsTotal > 0 && status == 'extracting'
+                ? 'Materials $lessonsDone/$lessonsTotal'
+                : i == 1 && lessonsTotal > 0 && status == 'generating'
+                    ? 'Lessons $lessonsDone/$lessonsTotal'
+                    : _phases[i].$2,
+            done: i < active,
+            current: i == active,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PhaseChip extends StatelessWidget {
+  const _PhaseChip({
+    required this.label,
+    required this.done,
+    required this.current,
+  });
+
+  final String label;
+  final bool done;
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final color = done || current ? scheme.primary : scheme.onSurfaceVariant;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          done
+              ? Icons.check_circle
+              : current
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+          size: 14,
+          color: color,
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: current || done ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
