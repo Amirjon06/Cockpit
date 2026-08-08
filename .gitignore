@@ -83,6 +83,7 @@ Server Access.md
 Backend/.env
 # Local-only project reference (credentials inside)
 info.md
+.deploy-ssh-password
 
 # Claude Code local settings (keep launch.json, ignore machine-local prefs)
 .claude/settings.local.json
