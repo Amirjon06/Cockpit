@@ -904,9 +904,13 @@ class _RelatedTopics extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Related topics',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w800)),
+              Flexible(
+                child: Text('Related topics',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w800)),
+              ),
               const Spacer(),
               InkWell(
                 onTap: onGoTeachMe,
