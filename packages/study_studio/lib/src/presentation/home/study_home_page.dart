@@ -137,8 +137,7 @@ class _HomeDesktop extends StatelessWidget {
   Widget build(BuildContext context) {
     final byRecent = _byRecent(studios);
 
-    return _GlowBackdrop(
-      child: Padding(
+    return Padding(
         padding: const EdgeInsets.fromLTRB(40, 26, 40, 26),
         child: ContentColumn(
           maxWidth: 1180,
@@ -146,7 +145,7 @@ class _HomeDesktop extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _Masthead(),
-              const SizedBox(height: CockpitSpacing.lg),
+              const SizedBox(height: CockpitSpacing.md),
               _NewStudioHero(onTap: () => context.go('/study/upload')),
               const SizedBox(height: CockpitSpacing.xl),
               Expanded(
@@ -230,7 +229,6 @@ class _HomeDesktop extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }
@@ -329,43 +327,30 @@ class _Masthead extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final desktop = isDesktop(context);
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Eyebrow('Your learning cockpit'),
-              const SizedBox(height: CockpitSpacing.xs),
-              Text(
-                'Study Studio',
-                style: (desktop
-                        ? theme.textTheme.displaySmall
-                        : theme.textTheme.headlineMedium)
-                    ?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.2,
-                  height: 1.0,
-                ),
-              ),
-              const SizedBox(height: CockpitSpacing.xs),
-              Text(
-                'Turn notes, lectures, and textbooks into a living, '
-                'AI-taught curriculum.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.35,
-                ),
-              ),
-            ],
+        _Eyebrow('Your learning cockpit'),
+        const SizedBox(height: CockpitSpacing.xs),
+        Text(
+          'Turn notes into mastery',
+          style: (desktop
+                  ? theme.textTheme.headlineMedium
+                  : theme.textTheme.headlineSmall)
+              ?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.8,
+            height: 1.0,
           ),
         ),
-        const SizedBox(width: CockpitSpacing.lg),
-        _CircleIconButton(
-          icon: Icons.notifications_none_rounded,
-          onTap: () {},
-          showDot: true,
+        const SizedBox(height: CockpitSpacing.xs),
+        Text(
+          'Lectures, notes, and textbooks — rebuilt as a living, '
+          'AI-taught curriculum.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: scheme.onSurfaceVariant,
+            height: 1.35,
+          ),
         ),
       ],
     );
@@ -405,56 +390,6 @@ class _Eyebrow extends StatelessWidget {
   }
 }
 
-class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({
-    required this.icon,
-    required this.onTap,
-    this.showDot = false,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool showDot;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(CockpitRadii.pill),
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          shape: BoxShape.circle,
-          border: Border.all(color: scheme.outlineVariant),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(icon, size: 21, color: scheme.onSurface),
-            if (showDot)
-              Positioned(
-                top: 10,
-                right: 11,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: scheme.surface, width: 1.5),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
 // New Study Studio hero — a signature black slab with a red glow.
 // ---------------------------------------------------------------------------
@@ -482,42 +417,44 @@ class _NewStudioHero extends StatelessWidget {
                 end: Alignment.centerRight,
                 colors: [Color(0xFF17130F), Color(0xFF0A0908)],
               ),
-              border: Border.all(
-                color: scheme.primary
-                    .withValues(alpha: hovered ? 0.55 : 0.28),
-              ),
+              border: Border.all(color: Colors.black, width: 1),
+              // Neutral drop shadow only — a red glow here bleeds past the
+              // rounded card and reads as a hard-edged red box on the black page.
               boxShadow: [
                 BoxShadow(
-                  color: scheme.primary
-                      .withValues(alpha: hovered ? 0.34 : 0.18),
-                  blurRadius: hovered ? 34 : 22,
-                  offset: const Offset(0, 14),
+                  color: Colors.black.withValues(alpha: hovered ? 0.6 : 0.45),
+                  blurRadius: hovered ? 26 : 18,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
-            child: Stack(
-              children: [
-                // Red glow bleeding from the right edge.
-                Positioned(
-                  right: -40,
-                  top: -30,
-                  child: Container(
-                    width: 180,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          scheme.primary.withValues(alpha: 0.35),
-                          scheme.primary.withValues(alpha: 0.0),
-                        ],
+            // Clip the glow to the rounded corners — otherwise it bleeds past
+            // the radius and the top-right corner reads as a sharp rectangle.
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(CockpitRadii.xl),
+              child: Stack(
+                children: [
+                  // Red glow bleeding from the right edge.
+                  Positioned(
+                    right: -40,
+                    top: -30,
+                    child: Container(
+                      width: 180,
+                      height: 180,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            scheme.primary.withValues(alpha: 0.35),
+                            scheme.primary.withValues(alpha: 0.0),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(CockpitSpacing.lg),
-                  child: Row(
+                  Padding(
+                    padding: const EdgeInsets.all(CockpitSpacing.lg),
+                    child: Row(
                     children: [
                       Container(
                         width: 52,
@@ -580,6 +517,7 @@ class _NewStudioHero extends StatelessWidget {
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),
@@ -1126,41 +1064,6 @@ class _EmptyStudios extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Faint red radial glow bleeding down from the top of the page for depth.
-class _GlowBackdrop extends StatelessWidget {
-  const _GlowBackdrop({required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Stack(
-      children: [
-        Positioned(
-          top: -160,
-          right: -80,
-          child: IgnorePointer(
-            child: Container(
-              width: 460,
-              height: 460,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    scheme.primary.withValues(alpha: 0.10),
-                    scheme.primary.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        child,
-      ],
     );
   }
 }

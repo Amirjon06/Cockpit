@@ -71,6 +71,7 @@ class _DashboardDesktop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final topics = studio.topics;
     final weakest = topics.isEmpty
         ? null
@@ -83,84 +84,137 @@ class _DashboardDesktop extends StatelessWidget {
         : topics.reduce((a, b) =>
             a.relatedTopicIds.length >= b.relatedTopicIds.length ? a : b);
     final base = '/study/${studio.id}';
+    final modes = _modesFor(context, studio, weakest);
 
-    // Viewport-fit: the header and AI companion stay pinned at the top; the
-    // learning modes (laid out in a fixed 3-column grid) and the resume/snapshot
-    // cards fill the rest and only scroll internally on unusually short windows.
+    // No-scroll bento: header + status banner pinned, then a two-column main
+    // area that fills the rest — learning-mode grid on the left, snapshot +
+    // resume stacked on the right. Everything sizes with Expanded/flex so the
+    // whole studio fits one viewport without scrolling.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(40, 12, 40, 16),
+      padding: const EdgeInsets.fromLTRB(32, 14, 32, 16),
       child: ContentColumn(
-        maxWidth: 1180,
+        maxWidth: 1320,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Header(studio: studio),
-            const SizedBox(height: CockpitSpacing.sm),
+            const SizedBox(height: CockpitSpacing.md),
             _CompanionCard(studio: studio, recommended: weakest, compact: true),
             const SizedBox(height: CockpitSpacing.md),
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    'Choose How You Want to Learn',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    'Choose how you want to learn',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
                   ),
                 ),
                 TextButton.icon(
                   onPressed: () => context.go('$base/topics'),
                   iconAlignment: IconAlignment.end,
                   icon: const Icon(Icons.chevron_right, size: 18),
-                  label: const Text('Explore All'),
+                  label: const Text('Explore all'),
                 ),
               ],
             ),
-            const SizedBox(height: CockpitSpacing.md),
+            const SizedBox(height: CockpitSpacing.sm),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: CockpitSpacing.xs),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _LearningModeGrid(
-                      studio: studio,
-                      recommended: weakest,
-                      crossAxisCount: 3,
-                    ),
-                    const SizedBox(height: CockpitSpacing.sm),
-                    if (weakest != null &&
-                        strongest != null &&
-                        connected != null)
-                      IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: _ContinueCard(
-                                topic: weakest,
-                                lastStudied: studio.lastStudied,
-                                onTap: () =>
-                                    context.go('$base/teach/${weakest.id}'),
-                              ),
-                            ),
-                            const SizedBox(width: CockpitSpacing.lg),
-                            Expanded(
-                              child: _KnowledgeSnapshot(
-                                connected: connected,
-                                weakest: weakest,
-                                strongest: strongest,
-                              ),
-                            ),
-                          ],
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: 63, child: _ModeBento(modes: modes)),
+                  const SizedBox(width: CockpitSpacing.lg),
+                  Expanded(
+                    flex: 37,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: (weakest != null &&
+                                  strongest != null &&
+                                  connected != null)
+                              ? _KnowledgePanelVertical(
+                                  connected: connected,
+                                  weakest: weakest,
+                                  strongest: strongest,
+                                )
+                              : const _EmptyPanel(),
                         ),
-                      ),
-                  ],
-                ),
+                        if (weakest != null) ...[
+                          const SizedBox(height: CockpitSpacing.md),
+                          _ContinueCard(
+                            topic: weakest,
+                            lastStudied: studio.lastStudied,
+                            onTap: () =>
+                                context.go('$base/teach/${weakest.id}'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Desktop learning-mode bento: two rows of three cards, each flexing to fill
+/// the available height so the grid never scrolls.
+class _ModeBento extends StatelessWidget {
+  const _ModeBento({required this.modes});
+  final List<_Mode> modes;
+
+  Widget _row(List<_Mode> row) => Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < row.length; i++) ...[
+            if (i > 0) const SizedBox(width: CockpitSpacing.md),
+            Expanded(child: _ModeCard(mode: row[i])),
+          ],
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final top = modes.take(3).toList();
+    final bottom = modes.skip(3).take(3).toList();
+    return Column(
+      children: [
+        Expanded(child: _row(top)),
+        const SizedBox(height: CockpitSpacing.md),
+        Expanded(child: _row(bottom)),
+      ],
+    );
+  }
+}
+
+/// Placeholder for the right column while a studio has no topics yet.
+class _EmptyPanel extends StatelessWidget {
+  const _EmptyPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(CockpitRadii.lg),
+        border: Border.all(color: Colors.black, width: 1),
+      ),
+      child: Center(
+        child: Text(
+          'Topics appear here as your\nstudio finishes building.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: scheme.onSurfaceVariant),
         ),
       ),
     );
@@ -249,44 +303,72 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final desktop = isDesktop(context);
+    TextSpan meta(String value, String label) => TextSpan(children: [
+          TextSpan(
+            text: '$value ',
+            style: TextStyle(
+              color: scheme.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          TextSpan(text: label),
+        ]);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        CockpitSpacing.md,
-        CockpitSpacing.sm,
-        CockpitSpacing.md,
+      padding: EdgeInsets.fromLTRB(
+        CockpitSpacing.xs,
+        desktop ? 0 : CockpitSpacing.sm,
+        CockpitSpacing.xs,
         0,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _CircleButton(
             icon: Icons.arrow_back_ios_new,
             onTap: () => context.go('/study'),
           ),
-          const SizedBox(width: CockpitSpacing.xs),
+          const SizedBox(width: CockpitSpacing.md),
           Expanded(
             child: Column(
+              crossAxisAlignment:
+                  desktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
               children: [
                 Text(
                   studio.title,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
+                  textAlign: desktop ? TextAlign.start : TextAlign.center,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                  style: (desktop
+                          ? theme.textTheme.headlineSmall
+                          : theme.textTheme.titleLarge)
+                      ?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${studio.topicCount} Topics  •  ${studio.flashcardCount} '
-                  'Flashcards  •  ${studio.quizCount} Quizzes',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(height: 1),
+                Text.rich(
+                  TextSpan(
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                    children: [
+                      meta('${studio.topicCount}', 'topics'),
+                      const TextSpan(text: '   ·   '),
+                      meta('${studio.flashcardCount}', 'flashcards'),
+                      const TextSpan(text: '   ·   '),
+                      meta('${studio.quizCount}', 'quizzes'),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: desktop ? TextAlign.start : TextAlign.center,
                 ),
               ],
             ),
           ),
-          const SizedBox(width: CockpitSpacing.xs),
+          const SizedBox(width: CockpitSpacing.sm),
           _CircleButton(
             icon: Icons.search,
             onTap: () => context.go('/study/${studio.id}/topics'),
@@ -577,8 +659,9 @@ class _StudioMenu extends ConsumerWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surfaceContainerHigh,
         shape: BoxShape.circle,
+        border: Border.all(color: Colors.black, width: 1),
       ),
       child: PopupMenuButton<String>(
         icon: Icon(Icons.more_horiz, size: 20, color: theme.colorScheme.onSurface),
@@ -696,7 +779,7 @@ class _CompanionCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const _RobotAvatar(),
+            const _RobotAvatar(size: 56),
             const SizedBox(width: CockpitSpacing.md),
             Expanded(
               child: Column(
@@ -773,9 +856,7 @@ class _CompanionCard extends StatelessWidget {
             _OutlineButton(
               icon: Icons.chat_bubble_outline,
               label: 'Ask AI',
-              onTap: () => context.go(
-                rec != null ? '$base/teach/${rec.id}' : '$base/topics',
-              ),
+              onTap: () => context.go('$base/ask-ai'),
             ),
           ],
         ),
@@ -904,31 +985,35 @@ class _CompanionCard extends StatelessWidget {
 }
 
 class _RobotAvatar extends StatelessWidget {
-  const _RobotAvatar();
+  const _RobotAvatar({this.size = 78});
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final violet = _shiftHue(scheme.primary, -28);
     return Container(
-      width: 78,
-      height: 78,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [violet, scheme.primary],
+          colors: [
+            scheme.primary,
+            Color.lerp(scheme.primary, Colors.black, 0.4)!,
+          ],
         ),
+        border: Border.all(color: Colors.black, width: 1),
         boxShadow: [
           BoxShadow(
-            color: scheme.primary.withValues(alpha: 0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: scheme.primary.withValues(alpha: 0.4),
+            blurRadius: size * 0.26,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 40),
+      child: Icon(Icons.smart_toy_rounded, color: Colors.white, size: size * 0.5),
     );
   }
 }
@@ -941,96 +1026,88 @@ class _LearningModeGrid extends StatelessWidget {
   const _LearningModeGrid({
     required this.studio,
     required this.recommended,
-    this.crossAxisCount,
   });
   final Studio studio;
   final Topic? recommended;
 
-  /// When set (desktop), lays the modes out in exactly this many columns so the
-  /// whole grid keeps to a fixed number of rows and stays inside the viewport.
-  final int? crossAxisCount;
-
   @override
   Widget build(BuildContext context) {
-    final base = '/study/${studio.id}';
-    final recId = (recommended ?? studio.topics.firstOrNull)?.id;
-    void soon(String label) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label — Phase 2')),
-        );
-
-    final modes = <_Mode>[
-      _Mode(
-        icon: Icons.school_rounded,
-        color: const Color(0xFF8B5CF6),
-        title: 'Teach Me',
-        desc: 'Learn any topic with AI explanations and follow-up questions.',
-        count: '${studio.topicCount} topics',
-        onTap: () => context.go(
-          recId != null ? '$base/teach/$recId' : '$base/topics',
-        ),
-      ),
-      _Mode(
-        icon: Icons.help_rounded,
-        color: const Color(0xFFE5484D),
-        title: 'Quiz Me',
-        desc: 'AI-generated quizzes to test your understanding.',
-        count: '${studio.quizCount} quizzes',
-        onTap: () => context.go('$base/quiz'),
-      ),
-      _Mode(
-        icon: Icons.bolt_rounded,
-        color: const Color(0xFFF5A623),
-        title: 'Lightning Recall',
-        desc: 'Rapid-fire questions for quick recall practice.',
-        count: '${studio.flashcardCount + studio.quizCount} questions',
-        onTap: () => context.go('$base/recall'),
-      ),
-      _Mode(
-        icon: Icons.style_rounded,
-        color: const Color(0xFF30A46C),
-        title: 'Flashcards',
-        desc: 'Smart flashcards spaced for long-term retention.',
-        count: '${studio.flashcardCount} flashcards',
-        onTap: () => context.go('$base/flashcards'),
-      ),
-      _Mode(
-        icon: Icons.theater_comedy_rounded,
-        color: const Color(0xFF3B82F6),
-        title: 'Scenario Mode',
-        desc: 'Real-world scenarios to apply your knowledge.',
-        count: '${studio.scenarioCount} scenarios',
-        onTap: () => context.go('$base/scenario'),
-      ),
-      _Mode(
-        icon: Icons.view_in_ar_rounded,
-        color: const Color(0xFF7C3AED),
-        title: 'Visualize',
-        desc: 'Diagrams, concept maps, and interactive visuals.',
-        count: '${studio.topicCount} visuals',
-        onTap: () => soon('Visualize'),
-      ),
-    ];
+    final modes = _modesFor(context, studio, recommended);
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: modes.length,
-      gridDelegate: crossAxisCount != null
-          ? SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount!,
-              mainAxisSpacing: CockpitSpacing.sm,
-              crossAxisSpacing: CockpitSpacing.md,
-              mainAxisExtent: 142,
-            )
-          : const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 230,
-              mainAxisSpacing: CockpitSpacing.md,
-              crossAxisSpacing: CockpitSpacing.md,
-              mainAxisExtent: 188,
-            ),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 230,
+        mainAxisSpacing: CockpitSpacing.md,
+        crossAxisSpacing: CockpitSpacing.md,
+        mainAxisExtent: 188,
+      ),
       itemBuilder: (context, i) => _ModeCard(mode: modes[i]),
     );
   }
+}
+
+/// The six learning modes, derived from the studio's real counts. Shared by the
+/// mobile grid and the desktop bento.
+List<_Mode> _modesFor(BuildContext context, Studio studio, Topic? recommended) {
+  final base = '/study/${studio.id}';
+  final recId = (recommended ?? studio.topics.firstOrNull)?.id;
+  void soon(String label) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$label — Phase 2')),
+      );
+  return <_Mode>[
+    _Mode(
+      icon: Icons.school_rounded,
+      color: const Color(0xFF8B5CF6),
+      title: 'Teach Me',
+      desc: 'Learn any topic with AI explanations and follow-up questions.',
+      count: '${studio.topicCount} topics',
+      onTap: () =>
+          context.go(recId != null ? '$base/teach/$recId' : '$base/topics'),
+    ),
+    _Mode(
+      icon: Icons.help_rounded,
+      color: const Color(0xFFE5484D),
+      title: 'Quiz Me',
+      desc: 'AI-generated quizzes to test your understanding.',
+      count: '${studio.quizCount} quizzes',
+      onTap: () => context.go('$base/quiz'),
+    ),
+    _Mode(
+      icon: Icons.bolt_rounded,
+      color: const Color(0xFFF5A623),
+      title: 'Lightning Recall',
+      desc: 'Rapid-fire questions for quick recall practice.',
+      count: '${studio.flashcardCount + studio.quizCount} questions',
+      onTap: () => context.go('$base/recall'),
+    ),
+    _Mode(
+      icon: Icons.style_rounded,
+      color: const Color(0xFF30A46C),
+      title: 'Flashcards',
+      desc: 'Smart flashcards spaced for long-term retention.',
+      count: '${studio.flashcardCount} flashcards',
+      onTap: () => context.go('$base/flashcards'),
+    ),
+    _Mode(
+      icon: Icons.theater_comedy_rounded,
+      color: const Color(0xFF3B82F6),
+      title: 'Scenario Mode',
+      desc: 'Real-world scenarios to apply your knowledge.',
+      count: '${studio.scenarioCount} scenarios',
+      onTap: () => context.go('$base/scenario'),
+    ),
+    _Mode(
+      icon: Icons.view_in_ar_rounded,
+      color: const Color(0xFF7C3AED),
+      title: 'Visualize',
+      desc: 'Diagrams, concept maps, and interactive visuals.',
+      count: '${studio.topicCount} visuals',
+      onTap: () => soon('Visualize'),
+    ),
+  ];
 }
 
 class _Mode {
@@ -1058,50 +1135,52 @@ class _ModeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.surface,
+      color: theme.colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(CockpitRadii.lg),
       child: InkWell(
         onTap: mode.onTap,
         borderRadius: BorderRadius.circular(CockpitRadii.lg),
+        hoverColor: mode.color.withValues(alpha: 0.06),
         child: Ink(
-          padding: const EdgeInsets.all(CockpitSpacing.lg),
+          padding: const EdgeInsets.all(CockpitSpacing.md),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(CockpitRadii.lg),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+            border: Border.all(color: Colors.black, width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: mode.color.withValues(alpha: 0.14),
-                  shape: BoxShape.circle,
+                  color: mode.color.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(CockpitRadii.md),
+                  border: Border.all(color: mode.color.withValues(alpha: 0.35)),
                 ),
-                child: Icon(mode.icon, color: mode.color, size: 24),
+                child: Icon(mode.icon, color: mode.color, size: 23),
               ),
-              const SizedBox(height: CockpitSpacing.md),
+              const Spacer(),
               Text(
                 mode.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: CockpitSpacing.xs),
-              Expanded(
-                child: Text(
-                  mode.desc,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.3,
-                  ),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: CockpitSpacing.xs),
+              const SizedBox(height: 3),
+              Text(
+                mode.desc,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: CockpitSpacing.sm),
               Row(
                 children: [
                   Expanded(
@@ -1115,8 +1194,8 @@ class _ModeCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Icon(Icons.chevron_right,
-                      size: 18, color: theme.colorScheme.onSurfaceVariant),
+                  Icon(Icons.arrow_outward_rounded,
+                      size: 16, color: theme.colorScheme.onSurfaceVariant),
                 ],
               ),
             ],
@@ -1380,6 +1459,179 @@ class _SnapshotMetric extends StatelessWidget {
   }
 }
 
+/// Vertical Knowledge Snapshot for the desktop right column — three metric rows
+/// that flex to fill the panel height, over a full-width "View Knowledge Graph"
+/// button.
+class _KnowledgePanelVertical extends StatelessWidget {
+  const _KnowledgePanelVertical({
+    required this.connected,
+    required this.weakest,
+    required this.strongest,
+  });
+  final Topic connected;
+  final Topic weakest;
+  final Topic strongest;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(CockpitSpacing.md),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(CockpitRadii.lg),
+        border: Border.all(color: Colors.black, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.insights_rounded, size: 18, color: scheme.primary),
+              const SizedBox(width: CockpitSpacing.sm),
+              Text(
+                'Knowledge Snapshot',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _SnapRow(
+                  icon: Icons.hub_rounded,
+                  color: scheme.primary,
+                  label: 'Most connected',
+                  value: connected.title,
+                  sub: '${connected.relatedTopicIds.length} links',
+                ),
+                Divider(height: 1, color: scheme.outlineVariant),
+                _SnapRow(
+                  icon: Icons.trending_down_rounded,
+                  color: scheme.error,
+                  label: 'Weakest topic',
+                  value: weakest.title,
+                  sub: '${(weakest.mastery * 100).round()}%',
+                ),
+                Divider(height: 1, color: scheme.outlineVariant),
+                _SnapRow(
+                  icon: Icons.trending_up_rounded,
+                  color: scheme.tertiary,
+                  label: 'Strongest topic',
+                  value: strongest.title,
+                  sub: '${(strongest.mastery * 100).round()}%',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: CockpitSpacing.sm),
+          InkWell(
+            onTap: () =>
+                context.go('/study/${connected.studioId}/knowledge-graph'),
+            borderRadius: BorderRadius.circular(CockpitRadii.md),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: CockpitSpacing.sm),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(CockpitRadii.md),
+                border: Border.all(color: Colors.black, width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'View Knowledge Graph',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(Icons.chevron_right, size: 16, color: scheme.primary),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SnapRow extends StatelessWidget {
+  const _SnapRow({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.value,
+    required this.sub,
+  });
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String value;
+  final String sub;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(CockpitRadii.md),
+            border: Border.all(color: color.withValues(alpha: 0.32)),
+          ),
+          child: Icon(icon, size: 19, color: color),
+        ),
+        const SizedBox(width: CockpitSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: CockpitSpacing.sm),
+        Text(
+          sub,
+          style: theme.textTheme.labelMedium
+              ?.copyWith(color: color, fontWeight: FontWeight.w800),
+        ),
+      ],
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Shared bits
 // ---------------------------------------------------------------------------
@@ -1419,16 +1671,16 @@ class _OutlinedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.surface,
+      color: theme.colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(CockpitRadii.lg),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(CockpitRadii.lg),
         child: Ink(
-          padding: const EdgeInsets.all(CockpitSpacing.lg),
+          padding: const EdgeInsets.all(CockpitSpacing.md),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(CockpitRadii.lg),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+            border: Border.all(color: Colors.black, width: 1),
           ),
           child: child,
         ),
@@ -1450,7 +1702,6 @@ class _GradientButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final violet = _shiftHue(scheme.primary, -28);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1459,10 +1710,18 @@ class _GradientButton extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(CockpitRadii.pill),
-            gradient: LinearGradient(colors: [scheme.secondary, violet]),
+            gradient: LinearGradient(colors: [scheme.primary, scheme.secondary]),
+            border: Border.all(color: Colors.black, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: scheme.primary.withValues(alpha: 0.35),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: SizedBox(
-            height: 48,
+            height: 46,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -1503,7 +1762,7 @@ class _OutlineButton extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Material(
-      color: scheme.surface,
+      color: scheme.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(CockpitRadii.pill),
       child: InkWell(
         onTap: onTap,
@@ -1511,12 +1770,12 @@ class _OutlineButton extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(CockpitRadii.pill),
-            border: Border.all(color: scheme.outlineVariant),
+            border: Border.all(color: Colors.black, width: 1),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: CockpitSpacing.lg),
             child: SizedBox(
-              height: 48,
+              height: 46,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1551,18 +1810,12 @@ class _CircleButton extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
+          color: theme.colorScheme.surfaceContainerHigh,
           shape: BoxShape.circle,
+          border: Border.all(color: Colors.black, width: 1),
         ),
         child: Icon(icon, size: 18, color: theme.colorScheme.onSurface),
       ),
     );
   }
-}
-
-/// Rotates a color's hue to build a same-family gradient companion.
-Color _shiftHue(Color base, double degrees) {
-  final hsl = HSLColor.fromColor(base);
-  final h = (hsl.hue + degrees) % 360;
-  return hsl.withHue(h < 0 ? h + 360 : h).toColor();
 }

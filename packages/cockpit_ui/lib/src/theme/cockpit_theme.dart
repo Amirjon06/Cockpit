@@ -83,6 +83,16 @@ abstract final class CockpitTheme {
             horizontal: CockpitSpacing.xl,
             vertical: CockpitSpacing.md,
           ),
+          // 1px black ring on every filled button for crisp edges on dark.
+          side: const BorderSide(color: Colors.black, width: 1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(CockpitRadii.md),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Colors.black, width: 1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(CockpitRadii.md),
           ),

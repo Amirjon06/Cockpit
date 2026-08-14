@@ -57,9 +57,9 @@ class StudioShell extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isDesktop(context)) {
       return Scaffold(
-        body: Row(
+        body: Column(
           children: [
-            _NavRail(selectedIndex: selectedIndex),
+            _TopDock(selectedIndex: selectedIndex),
             Expanded(child: child),
           ],
         ),
@@ -116,99 +116,43 @@ class _MobileTopBar extends StatelessWidget {
   }
 }
 
-/// Left navigation rail for desktop/web.
-class _NavRail extends StatelessWidget {
-  const _NavRail({required this.selectedIndex});
+/// Top navigation dock for desktop/web — brand + horizontal nav on the left,
+/// the account/credits/notification cluster docked on the right. Shell-level,
+/// so it appears on every Study Studio page. Replaces the old left rail.
+class _TopDock extends StatelessWidget {
+  const _TopDock({required this.selectedIndex});
   final int selectedIndex;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final violet = _shiftHue(scheme.primary, -28);
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
-      width: 232,
+      height: 62,
       decoration: BoxDecoration(
         color: scheme.surface,
-        border: Border(right: BorderSide(color: scheme.outlineVariant)),
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: CockpitSpacing.xl),
+        child: Row(
           children: [
-            // Brand.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                CockpitSpacing.lg,
-                CockpitSpacing.lg,
-                CockpitSpacing.lg,
-                CockpitSpacing.xl,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(CockpitRadii.sm),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [violet, scheme.primary],
-                      ),
-                    ),
-                    child: const Icon(Icons.auto_awesome,
-                        color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: CockpitSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'Study Studio',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const _DockBrand(),
+            const SizedBox(width: CockpitSpacing.lg),
             for (var i = 0; i < studioNavItems.length; i++)
-              _RailItem(
-                icon: studioNavItems[i].$1,
-                selectedIcon: studioNavItems[i].$2,
+              _DockNavItem(
                 label: studioNavItems[i].$3,
                 selected: i == selectedIndex,
                 onTap: () => handleStudioNav(context, i),
               ),
             const Spacer(),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                CockpitSpacing.md,
-                CockpitSpacing.md,
-                CockpitSpacing.md,
-                CockpitSpacing.sm,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: const AccountBar(compact: true),
-              ),
+            _DockIconButton(
+              icon: Icons.notifications_none_rounded,
+              showDot: true,
+              onTap: () {},
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                CockpitSpacing.lg,
-                0,
-                CockpitSpacing.lg,
-                CockpitSpacing.md,
-              ),
-              child: Text(
-                'Boardwalks LLC',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-            ),
+            const SizedBox(width: CockpitSpacing.md),
+            const AccountBar(compact: true),
           ],
         ),
       ),
@@ -216,16 +160,62 @@ class _NavRail extends StatelessWidget {
   }
 }
 
-class _RailItem extends StatelessWidget {
-  const _RailItem({
-    required this.icon,
-    required this.selectedIcon,
+/// The brand lockup in the top dock: red logo tile + wordmark.
+class _DockBrand extends StatelessWidget {
+  const _DockBrand();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(CockpitRadii.md),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                scheme.primary,
+                Color.lerp(scheme.primary, Colors.black, 0.45)!,
+              ],
+            ),
+            border: Border.all(color: Colors.black, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: scheme.primary.withValues(alpha: 0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+        ),
+        const SizedBox(width: CockpitSpacing.sm),
+        Text(
+          'Study Studio',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A single horizontal nav link in the dock. Labels only — active reads as a
+/// red-tinted pill; inactive is muted with a hover fill.
+class _DockNavItem extends StatelessWidget {
+  const _DockNavItem({
     required this.label,
     required this.selected,
     required this.onTap,
   });
-  final IconData icon;
-  final IconData selectedIcon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -235,43 +225,80 @@ class _RailItem extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: CockpitSpacing.md,
-        vertical: 3,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Material(
-        color: selected ? scheme.primary.withValues(alpha: 0.10) : Colors.transparent,
-        borderRadius: BorderRadius.circular(CockpitRadii.md),
+        color: selected
+            ? scheme.primary.withValues(alpha: 0.12)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(CockpitRadii.pill),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(CockpitRadii.md),
+          borderRadius: BorderRadius.circular(CockpitRadii.pill),
+          hoverColor: scheme.onSurface.withValues(alpha: 0.05),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: CockpitSpacing.md,
-              vertical: CockpitSpacing.md,
+              vertical: CockpitSpacing.sm,
             ),
-            child: Row(
-              children: [
-                Icon(
-                  selected ? selectedIcon : icon,
-                  size: 22,
-                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: CockpitSpacing.md),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: selected ? scheme.primary : scheme.onSurface,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small circular icon button for the dock (notifications), with an optional
+/// unread dot and the theme's 1px black ring.
+class _DockIconButton extends StatelessWidget {
+  const _DockIconButton({
+    required this.icon,
+    required this.onTap,
+    this.showDot = false,
+  });
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool showDot;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(CockpitRadii.pill),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.black, width: 1),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(icon, size: 20, color: scheme.onSurface),
+            if (showDot)
+              Positioned(
+                top: 9,
+                right: 10,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: scheme.surface, width: 1.5),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -320,8 +347,3 @@ class ContentColumn extends StatelessWidget {
   }
 }
 
-Color _shiftHue(Color base, double degrees) {
-  final hsl = HSLColor.fromColor(base);
-  final h = (hsl.hue + degrees) % 360;
-  return hsl.withHue(h < 0 ? h + 360 : h).toColor();
-}
