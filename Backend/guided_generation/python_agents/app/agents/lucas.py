@@ -4,10 +4,10 @@ from collections.abc import AsyncIterator
 from app.model_client import ModelClient
 
 
-LENGTH_GUIDANCE = {
-    "concise": "Keep the essay focused and concise (roughly 600-900 words).",
-    "standard": "Develop a standard-length essay (roughly 1,000-1,500 words).",
-    "in-depth": "Write an in-depth essay (roughly 1,800-2,500 words).",
+LENGTH_WORD_COUNTS = {
+    "concise": 750,
+    "standard": 1250,
+    "in-depth": 2200,
 }
 
 
@@ -18,10 +18,24 @@ def _clean_choice(value, allowed: set[str], default: str) -> str:
     return default
 
 
+def _word_count(payload: dict) -> int:
+    raw = payload.get("wordCount") or payload.get("customWordCount")
+    try:
+        parsed = int(raw)
+        if parsed > 0:
+            return max(100, min(20_000, parsed))
+    except (TypeError, ValueError):
+        pass
+
+    length = str(payload.get("length") or "standard").strip().lower()
+    return LENGTH_WORD_COUNTS.get(length, LENGTH_WORD_COUNTS["standard"])
+
+
 def _format_outline(outlines: list[dict]) -> str:
     sections = []
     for index, item in enumerate(outlines, start=1):
-        title = str(item.get("title") or item.get("type") or f"Section {index}").strip()
+        outline_type = str(item.get("type") or "Body Paragraph").strip()
+        title = str(item.get("title") or outline_type).strip()
         description = str(item.get("description") or "").strip()
         bullets = item.get("bullets") or []
         clean_bullets = [
@@ -30,10 +44,10 @@ def _format_outline(outlines: list[dict]) -> str:
             if str(bullet).strip()
         ]
 
-        lines = [f"{index}. {title}"]
+        lines = [f"Outline {index} ({outline_type}): {title}"]
         if description:
-            lines.append(f"   Purpose: {description}")
-        lines.extend(f"   - {bullet}" for bullet in clean_bullets)
+            lines.append(f"Description: {description}")
+        lines.extend(f"- {bullet}" for bullet in clean_bullets)
         sections.append("\n".join(lines))
 
     return "\n\n".join(sections)
@@ -42,43 +56,102 @@ def _format_outline(outlines: list[dict]) -> str:
 def _format_sources(sources: list[dict]) -> str:
     blocks = []
     for index, source in enumerate(sources, start=1):
+        kind = str(source.get("kind") or "unknown").strip()
         title = str(source.get("title") or "Untitled source").strip()
+        publisher = str(
+            source.get("publisher") or source.get("domain") or "Unknown publisher"
+        ).strip()
         author = str(source.get("author") or "Unknown author").strip()
-        year = str(source.get("year") or "n.d.").strip()
-        domain = str(source.get("domain") or "").strip()
-        snippet = str(
-            source.get("content")
+        year = str(
+            source.get("publishedYear") or source.get("year") or "n.d."
+        ).strip()
+        content = str(
+            source.get("compactedContent")
+            or source.get("content")
             or source.get("snippet")
             or source.get("text")
             or ""
         ).strip()
 
-        metadata = f"{author} ({year}), {title}"
-        if domain:
-            metadata += f", {domain}"
-        blocks.append(f"[{index}] {metadata}\n{snippet or '(No excerpt provided.)'}")
+        blocks.append(
+            "\n".join(
+                [
+                    f"Source {index}:",
+                    f"Kind: {kind}",
+                    f"Title: {title}",
+                    f"Publisher: {publisher}",
+                    f"Author: {author}",
+                    f"Year: {year}",
+                    f"Content (compacted): {content or '(No excerpt provided.)'}",
+                ]
+            )
+        )
 
     return "\n\n".join(blocks)
 
 
-def build_system_prompt(tone: str, length: str, citation_style: str) -> str:
-    length_instruction = LENGTH_GUIDANCE[length.lower()]
+def _format_rubric(criteria) -> str:
+    if not isinstance(criteria, list):
+        return "None provided"
+    lines = []
+    for index, criterion in enumerate(criteria, start=1):
+        if not isinstance(criterion, dict):
+            continue
+        name = str(criterion.get("name") or f"Criterion {index}").strip()
+        description = str(criterion.get("description") or "").strip()
+        points = criterion.get("points")
+        point_label = f" ({points} points)" if points is not None else ""
+        lines.append(f"{index}. {name}{point_label}: {description}")
+    return "\n".join(lines) or "None provided"
+
+
+def _format_style_profile(profile) -> str:
+    if not isinstance(profile, dict):
+        return "None provided; use a polished academic style."
+    return "\n".join(
+        [
+            f"Writing style: {profile.get('writing_style') or 'Not specified'}",
+            (
+                "Grammar preference: "
+                f"{profile.get('grammar_usage_style') or 'Use correct academic grammar'}"
+            ),
+            (
+                "Vocabulary level: "
+                f"{profile.get('vocabulary_usage_style_and_level') or 'Academic'}"
+            ),
+            "Preserve the stated style and vocabulary while maintaining correct grammar.",
+        ]
+    )
+
+
+def build_system_prompt(
+    tone: str,
+    word_count: int,
+    citation_style: str,
+    outline_count: int,
+) -> str:
     return f"""
-You are Lucas, an academic essay generation agent.
+You are Lucas, the main academic essay generation agent for OctoPilot AI.
 
-Write a polished essay that follows the supplied outline and assignment analysis.
-Use only factual claims supported by the numbered sources. Cite supporting claims
-with their source number, such as [1] or [2]. Never invent a source, quotation,
-statistic, author, or publication detail. If the sources do not support a planned
-claim, qualify or omit that claim.
+Write an essay of approximately {word_count} words in exactly {outline_count}
+paragraphs, following the provided outlines in order. Use the {tone} writing
+tone and {citation_style} citation format.
 
-Tone: {tone}
-Citation style: {citation_style}
-{length_instruction}
+Use every supplied source where relevant. Base factual claims on the compacted
+source content, distinguish source kinds appropriately, and create accurate
+in-text citations. Never invent quotations, facts, authors, dates, publishers,
+or source details. Include the requested keywords naturally when applicable and
+satisfy every supplied rubric criterion without mentioning the rubric.
 
-Return only the essay text. Include a title and a final References or Works Cited
-section formatted as closely as the supplied metadata permits. Do not discuss
-these instructions or wrap the essay in JSON or Markdown code fences.
+Do not add an essay title. Return strict JSON only, with no Markdown fence and
+no text outside this exact shape:
+{{
+  "essay_content": "The full essay with in-text citations",
+  "bibliography": "The fully formatted bibliography"
+}}
+
+Keep the essay itself close to {word_count} words. The bibliography is separate
+and does not count toward the requested essay word count.
 """.strip()
 
 
@@ -87,8 +160,22 @@ class LucasAgent:
         self.model_client = model_client
 
     async def generate_stream(self, payload: dict) -> AsyncIterator[str]:
-        outlines = payload.get("outlines") or payload.get("outline") or []
-        sources = payload.get("sources") or payload.get("selectedSources") or []
+        organizer = payload.get("organizerState")
+        if isinstance(organizer, dict):
+            payload = organizer
+
+        outlines = (
+            payload.get("selectedOutlines")
+            or payload.get("outlines")
+            or payload.get("outline")
+            or []
+        )
+        sources = (
+            payload.get("compactedSources")
+            or payload.get("sources")
+            or payload.get("selectedSources")
+            or []
+        )
 
         if not isinstance(outlines, list) or not any(
             isinstance(item, dict) for item in outlines
@@ -97,20 +184,15 @@ class LucasAgent:
         if not isinstance(sources, list) or not any(
             isinstance(item, dict) for item in sources
         ):
-            raise ValueError("at least one source is required")
+            raise ValueError("at least one compacted source is required")
 
         clean_outlines = [item for item in outlines if isinstance(item, dict)]
         clean_sources = [item for item in sources if isinstance(item, dict)]
-
+        word_count = _word_count(payload)
         tone = _clean_choice(
             payload.get("tone"),
             {"academic", "neutral", "persuasive"},
             "Academic",
-        )
-        length = _clean_choice(
-            payload.get("length"),
-            {"concise", "standard", "in-depth"},
-            "Standard",
         )
         citation_style = _clean_choice(
             payload.get("citationStyle") or payload.get("citation"),
@@ -118,21 +200,38 @@ class LucasAgent:
             "APA",
         )
 
-        system_prompt = build_system_prompt(tone, length, citation_style)
+        system_prompt = build_system_prompt(
+            tone,
+            word_count,
+            citation_style,
+            len(clean_outlines),
+        )
         assignment = {
             "analysis": payload.get("analysis") or "",
             "essayTopic": payload.get("essayTopic") or "",
-            "essayType": payload.get("essayType") or "",
+            "essayType": payload.get("essayType")
+            or payload.get("analyzedEssayType")
+            or "",
             "scope": payload.get("scope") or "",
             "structure": payload.get("structure") or "",
-            "instructions": payload.get("instructions") or "",
+            "instructions": payload.get("instructions")
+            or payload.get("instructionTextInput")
+            or "",
         }
         user_message = (
             "Assignment context:\n"
             f"{json.dumps(assignment, ensure_ascii=False, indent=2)}\n\n"
-            "Approved outline:\n"
+            f"Word Count: {word_count}\n"
+            f"Writing Tone: {tone}\n"
+            f"Citation Format: {citation_style}\n"
+            f"Keywords: {payload.get('keywords') or 'None'}\n\n"
+            "Writing-style preferences:\n"
+            f"{_format_style_profile(payload.get('writingStyleProfile'))}\n\n"
+            "Rubric Criteria:\n"
+            f"{_format_rubric(payload.get('rubricCriteria'))}\n\n"
+            f"Outlines ({len(clean_outlines)} paragraphs):\n"
             f"{_format_outline(clean_outlines)}\n\n"
-            "Approved sources:\n"
+            "Sources:\n"
             f"{_format_sources(clean_sources)}"
         )
 

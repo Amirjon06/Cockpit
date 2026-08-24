@@ -11,10 +11,11 @@ from app.model_client import ModelClient
 
 app = FastAPI(title="Guided Generation Agents")
 
-model_client = ModelClient()
-hein = HeinAgent(model_client)
-lily = LilyAgent(model_client)
-lucas = LucasAgent(model_client)
+secondary_model_client = ModelClient("OPENROUTER_SECONDARY_MODEL")
+primary_model_client = ModelClient("OPENROUTER_PRIMARY_MODEL")
+hein = HeinAgent(secondary_model_client)
+lily = LilyAgent(secondary_model_client)
+lucas = LucasAgent(primary_model_client)
 
 
 def sse_event(name: str, data=None) -> str:
@@ -54,7 +55,8 @@ async def generate_essay(payload: dict):
         try:
             async for delta in lucas.generate_stream(payload):
                 yield sse_event("delta", {"text": delta})
-            yield sse_event("meta", {"model": model_client.model})
+            client = getattr(lucas, "model_client", primary_model_client)
+            yield sse_event("meta", {"model": client.model})
             yield sse_event("done")
         except ValueError as error:
             yield sse_event("error", {"message": str(error), "status": 400})

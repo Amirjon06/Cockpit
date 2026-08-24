@@ -6,14 +6,23 @@ import (
 	"net/http"
 
 	"github.com/boardwalk-ai/Cockpit/Backend/guided_generation/go_api/internal/pythonclient"
+	"github.com/boardwalk-ai/Cockpit/Backend/guided_generation/go_api/internal/store"
 )
 
 type Server struct {
 	python *pythonclient.Client
+	store  *store.Store
 }
 
-func NewServer(python *pythonclient.Client) *Server {
-	return &Server{python: python}
+func NewServer(python *pythonclient.Client, stores ...*store.Store) *Server {
+	dataStore := (*store.Store)(nil)
+	if len(stores) > 0 {
+		dataStore = stores[0]
+	}
+	if dataStore == nil {
+		dataStore, _ = store.New("", 1000)
+	}
+	return &Server{python: python, store: dataStore}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -23,6 +32,21 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/guided-generation/analyze", s.analyze)
 	mux.HandleFunc("POST /api/guided-generation/outlines", s.outlines)
 	mux.HandleFunc("POST /api/guided-generation/generate", s.generate)
+	mux.HandleFunc("GET /api/guided-generation/credits", s.getCredits)
+	mux.HandleFunc("POST /api/guided-generation/credits/deduct", s.deductCredits)
+
+	// OctopilotWeb-compatible persistence and credit routes.
+	mux.HandleFunc("GET /api/v1/ghostwriter/threads", s.listThreads)
+	mux.HandleFunc("POST /api/v1/ghostwriter/threads", s.createThread)
+	mux.HandleFunc("GET /api/v1/ghostwriter/threads/{threadID}", s.getThread)
+	mux.HandleFunc("PATCH /api/v1/ghostwriter/threads/{threadID}", s.updateThread)
+	mux.HandleFunc("DELETE /api/v1/ghostwriter/threads/{threadID}", s.deleteThread)
+	mux.HandleFunc("GET /api/v1/ghostwriter/folders", s.listFolders)
+	mux.HandleFunc("POST /api/v1/ghostwriter/folders", s.createFolder)
+	mux.HandleFunc("PATCH /api/v1/ghostwriter/folders/{folderID}", s.updateFolder)
+	mux.HandleFunc("DELETE /api/v1/ghostwriter/folders/{folderID}", s.deleteFolder)
+	mux.HandleFunc("GET /api/v1/me/credits", s.getCredits)
+	mux.HandleFunc("POST /api/v1/me/credits/deduct", s.deductCredits)
 
 	return mux
 }

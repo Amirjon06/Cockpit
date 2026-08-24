@@ -9,9 +9,16 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
 class ModelClient:
-    def __init__(self):
+    def __init__(
+        self,
+        model_env: str = "OPENROUTER_MODEL",
+        default_model: str = "openai/gpt-4o-mini",
+    ):
         self.api_key = os.getenv("OPENROUTER_API_KEY", "")
-        self.model = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+        self.model = os.getenv(
+            model_env,
+            os.getenv("OPENROUTER_MODEL", default_model),
+        )
 
     async def json_completion(
         self,
@@ -69,6 +76,7 @@ class ModelClient:
             ],
             "temperature": temperature,
             "stream": True,
+            "response_format": {"type": "json_object"},
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
