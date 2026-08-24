@@ -155,3 +155,10 @@ go test ./...
 
 `tests/e2e_app.py` provides deterministic mock agents for a real-process
 Go-to-Python integration smoke test without spending OpenRouter credits.
+
+
+## Additional Guided Generation agents
+
+The Python service also rewrites Alvin (source discovery), Zuly (source compaction and writing-style analysis), Spoonie (citations/OCR), Su (Writing Chamber assistance), and Octo (in-app navigation). The existing Humanizer adapters are wired into the service as well.
+
+The Go API exposes compatible public routes for `/api/alvin/search`, `/api/zuly/compact`, `/api/spoonie/citation`, `/api/su/assist`, `/api/octo/assist`, and the three `/api/humanize/*` routes while Python owns the AI/model work.

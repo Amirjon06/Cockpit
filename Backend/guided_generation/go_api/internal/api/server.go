@@ -32,10 +32,20 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/guided-generation/analyze", s.analyze)
 	mux.HandleFunc("POST /api/guided-generation/outlines", s.outlines)
 	mux.HandleFunc("POST /api/guided-generation/generate", s.generate)
+
+	mux.HandleFunc("POST /api/alvin/search", s.alvin)
+	mux.HandleFunc("POST /api/zuly/compact", s.zuly)
+	mux.HandleFunc("POST /api/spoonie/citation", s.spoonie)
+	mux.HandleFunc("POST /api/su/assist", s.su)
+	mux.HandleFunc("POST /api/octo/assist", s.octo)
+
+	mux.HandleFunc("POST /api/humanize/stealthgpt", s.humanizeStealthGPT)
+	mux.HandleFunc("POST /api/humanize/undetectable", s.humanizeUndetectable)
+	mux.HandleFunc("POST /api/humanize/undetectable/document", s.humanizeUndetectableDocument)
+
 	mux.HandleFunc("GET /api/guided-generation/credits", s.getCredits)
 	mux.HandleFunc("POST /api/guided-generation/credits/deduct", s.deductCredits)
 
-	// OctopilotWeb-compatible persistence and credit routes.
 	mux.HandleFunc("GET /api/v1/ghostwriter/threads", s.listThreads)
 	mux.HandleFunc("POST /api/v1/ghostwriter/threads", s.createThread)
 	mux.HandleFunc("GET /api/v1/ghostwriter/threads/{threadID}", s.getThread)
@@ -52,10 +62,7 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status":  "ok",
-		"service": "guided-generation-go-api",
-	})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "guided-generation-go-api"})
 }
 
 func (s *Server) analyze(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +77,40 @@ func (s *Server) generate(w http.ResponseWriter, r *http.Request) {
 	s.forwardStream(w, r, "/agents/lucas/generate")
 }
 
+func (s *Server) alvin(w http.ResponseWriter, r *http.Request) {
+	s.forward(w, r, "/agents/alvin/search")
+}
+
+func (s *Server) zuly(w http.ResponseWriter, r *http.Request) {
+	s.forward(w, r, "/agents/zuly/compact")
+}
+
+func (s *Server) spoonie(w http.ResponseWriter, r *http.Request) {
+	s.forward(w, r, "/agents/spoonie/citation")
+}
+
+func (s *Server) su(w http.ResponseWriter, r *http.Request) {
+	s.forward(w, r, "/agents/su/assist")
+}
+
+func (s *Server) octo(w http.ResponseWriter, r *http.Request) {
+	s.forward(w, r, "/agents/octo/assist")
+}
+
+func (s *Server) humanizeStealthGPT(w http.ResponseWriter, r *http.Request) {
+	s.forward(w, r, "/humanizer/stealthgpt")
+}
+
+func (s *Server) humanizeUndetectable(w http.ResponseWriter, r *http.Request) {
+	s.forward(w, r, "/humanizer/undetectable")
+}
+
+func (s *Server) humanizeUndetectableDocument(w http.ResponseWriter, r *http.Request) {
+	s.forward(w, r, "/humanizer/undetectable/document")
+}
+
 func (s *Server) forward(w http.ResponseWriter, r *http.Request, path string) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
@@ -89,6 +129,7 @@ func (s *Server) forward(w http.ResponseWriter, r *http.Request, path string) {
 }
 
 func (s *Server) forwardStream(w http.ResponseWriter, r *http.Request, path string) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
