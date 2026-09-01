@@ -228,7 +228,7 @@
       <p>Your assignment board. Every week a new set of missions lands here — each one a self-contained module you own end to end. Past assignments stay on the board, so you can revisit any week's tasks anytime.</p>
       <div class="hero-meta">
         <div class="m"><span class="k">Team</span><span class="v">05</span></div>
-        <div class="m"><span class="k">Current</span><span class="v">Assignment 02</span></div>
+        <div class="m"><span class="k">Current</span><span class="v">Assignment 04</span></div>
         <div class="m"><span class="k">Cadence</span><span class="v r">Weekly</span></div>
       </div>
     </div>
@@ -236,23 +236,315 @@
   </section>
 
   <div class="marquee"><div class="marquee-track">
-    <span>GhostWriter</span><span>Guided Generation</span><span>Outline</span><span>Source Search</span><span>Humanizer</span><span>Flutter UI</span>
-    <span>GhostWriter</span><span>Guided Generation</span><span>Outline</span><span>Source Search</span><span>Humanizer</span><span>Flutter UI</span>
+    <span>Integration</span><span>Full Editor</span><span>Citations</span><span>APA · MLA · Chicago</span><span>Live Streaming</span><span>Flutter</span>
+    <span>Integration</span><span>Full Editor</span><span>Citations</span><span>APA · MLA · Chicago</span><span>Live Streaming</span><span>Flutter</span>
   </div></div>
 
   <!-- WEEK SWITCHER -->
   <section class="wrap weeks">
     <span class="lbl">Weeks</span>
-    <a class="wk active" href="#week02">Assignment 02 · 12 Aug <em>Current</em></a>
+    <a class="wk active" href="#week04">Assignment 04 · 01 Sep <em>Current</em></a>
+    <a class="wk" href="#week03">Assignment 03 · 22 Aug</a>
+    <a class="wk" href="#week02">Assignment 02 · 12 Aug</a>
     <a class="wk" href="#week01">Assignment 01 · 01 Aug</a>
   </section>
 
-  <!-- ===================== ASSIGNMENT 02 · 12 AUG 2026 (CURRENT) ===================== -->
+  <!-- ===================== ASSIGNMENT 04 · 01 SEP 2026 (CURRENT) ===================== -->
+  <section class="week wrap" id="week04">
+    <div class="week-head">
+      <span class="week-tag">Assignment 04 · Current</span>
+      <h1 class="week-title">01 September 2026</h1>
+      <p class="week-note">Time to <strong style="color:var(--text)">make it real</strong>. Sean takes <strong style="color:var(--text)">GhostWriter</strong> end to end; Amirjon &amp; Chris build the <strong style="color:var(--text)">full Guided-Generation editor</strong>. Then all three team up on the shared piece — one set of <strong style="color:var(--text)">citation formatters</strong> (APA / MLA / Chicago / IEEE / Harvard) in Dart that must work 100% inside <strong style="color:var(--text)">both</strong> editors. Anagha turns the streaming crawl live.</p>
+      <div class="week-stats">
+        <span class="s"><b>4</b> tasks</span>
+        <span class="s"><b>1</b> shared collab</span>
+        <span class="s"><b>Flutter</b> · Dart</span>
+      </div>
+    </div>
+
+    <!-- submission / focus / check-ins -->
+    <div class="brief">
+      <div class="brief-item"><span class="bi-k">Submission</span><span class="bi-v">Fork-based pull request</span></div>
+      <div class="brief-item"><span class="bi-k">Focus</span><span class="bi-v r">Integration · Editor · Streaming</span></div>
+      <div class="brief-item"><span class="bi-k">Check-ins</span><span class="bi-v">Daily · via WhatsApp</span></div>
+    </div>
+
+    <div class="grid">
+      <nav class="index">
+        <a href="#sean4" data-target="sean4"><span class="n">01</span> Sean</a>
+        <a href="#team4" data-target="team4"><span class="n">02</span> Amirjon + Chris</a>
+        <a href="#shared4" data-target="shared4"><span class="n">03</span> Shared · Formatters</a>
+        <a href="#anagha4" data-target="anagha4"><span class="n">04</span> Anagha</a>
+      </nav>
+
+      <div class="cards">
+
+        <!-- 1 SEAN -->
+        <article class="card" id="sean4">
+          <div class="card-num">01</div>
+          <div class="card-top">
+            <div class="avatar">S</div>
+            <div class="who"><div class="name">Sean</div><div class="role">Full-Stack · GhostWriter</div></div>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>~1 week</span>
+          </div>
+          <h3>GhostWriter — End-to-End Integration</h3>
+          <p class="lede">Connect the two halves you already own: your <strong style="color:#fff">GhostWriter Flutter UI</strong> (Assignment 02) and your <strong style="color:#fff">Go + Python agent backend</strong> (Assignment 03). Make the module real — live streaming, real saves, real credits, no mock data left.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Reference</span><p>Your own two builds: the <strong>GhostWriter UI</strong> from Assignment 02 and the <strong>GhostWriter agent backend</strong> from Assignment 03. This week they meet.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p>The full wiring — the Flutter UI talking to the Go APIs over HTTP and to the Python AI layer over <strong>SSE streaming</strong>. Every mock/stub state replaced by live data from your backend.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>Wire the UI to the <strong>Go APIs</strong> — saving, folder loading, user-credits.</span></li>
+                <li><span class="cbx"></span><span>Stream AI output into the UI over <strong>SSE</strong> — token-by-token, live.</span></li>
+                <li><span class="cbx"></span><span>Replace every <strong>mock state</strong> with real loading / empty / error / result from the backend.</span></li>
+                <li><span class="cbx"></span><span>Show <strong>credits + session</strong> straight from the backend; carry the semantic chat memory across turns.</span></li>
+                <li><span class="cbx"></span><span>Wire the <strong>GhostWriter editor</strong> to the <strong>shared citation formatters</strong> (task 03) — insert citations, build the reference list, switch styles.</span></li>
+                <li><span class="cbx"></span><span>Fail gracefully — network errors, dropped streams, retries.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>GhostWriter works end to end against the live backend — type a prompt, watch it stream in, save to a folder, credits update — with <strong>no mock data left</strong>.</p></div>
+          <div class="meta-row">
+            <span class="pill">Stack <b>Flutter · Go · Python</b></span>
+            <span class="pill">Scope <b>full-stack integration</b></span>
+            <span class="pill">Branch <b>your own · fork PR</b></span>
+          </div>
+        </article>
+
+        <!-- 2 AMIRJON + CHRIS -->
+        <article class="card" id="team4">
+          <div class="card-num">02</div>
+          <div class="card-top">
+            <div class="avatar">AC</div>
+            <div class="who"><div class="name">Amirjon + Chris</div><div class="role">Frontend · Guided Generation</div></div>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>~1 week</span>
+          </div>
+          <h3>Guided Generation — Full Editor</h3>
+          <p class="lede">Your Guided-Generation backend is done — now build the piece that makes the output usable: the <strong style="color:#fff">full document editor</strong> where a user reads, edits and formats the generated document. Citations come from the <strong style="color:#fff">shared formatters</strong> (task 03) — wire them in here.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Cooperation</span><p>Amirjon &amp; Chris — one Mode, one editor. Divide the editor between you and integrate into a single Flutter build. You also co-own the shared formatters in <strong>task 03</strong> with Sean.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p>The <strong>full Guided-Generation editor</strong> — edit the generated document with rich text, sections, a formatting toolbar, inline citations and an auto-built references section, all consuming the <strong>shared citation formatters</strong> from task 03.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>Build the <strong>full editor</strong> — rich text, headings, lists, a formatting toolbar, editable sections.</span></li>
+                <li><span class="cbx"></span><span>Inline <strong>citation insertion</strong> + an auto-built <strong>references / bibliography</strong> section.</span></li>
+                <li><span class="cbx"></span><span>Consume the <strong>shared formatters</strong> (task 03) — a <strong>style switcher</strong> swaps the whole document's citations between styles live.</span></li>
+                <li><span class="cbx"></span><span>Edits persist through your Assignment 03 backend (save / load).</span></li>
+                <li><span class="cbx"></span><span>Responsive layout · reusable widgets · clean state handling.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>The editor edits generated content with inline citations and a live references section, every citation style switches correctly via the shared formatters, and edits persist through the backend.</p></div>
+          <div class="meta-row">
+            <span class="pill">Stack <b>Flutter · Dart</b></span>
+            <span class="pill">Scope <b>full editor</b></span>
+            <span class="pill">Team <b>Amirjon + Chris</b></span>
+            <span class="pill">Branch <b>fork PR</b></span>
+          </div>
+        </article>
+
+        <!-- 3 SHARED · SEAN + AMIRJON + CHRIS -->
+        <article class="card" id="shared4">
+          <div class="card-num">03</div>
+          <div class="card-top">
+            <div class="avatar">SAC</div>
+            <div class="who"><div class="name">Sean + Amirjon + Chris</div><div class="role">Collaboration · Citation Formatters</div></div>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>~1 week</span>
+          </div>
+          <h3>Shared Citation Formatters — one build, both editors</h3>
+          <p class="lede">The one piece <strong style="color:#fff">GhostWriter</strong> and <strong style="color:#fff">Guided Generation</strong> both depend on. All three of you write <strong style="color:#fff">one</strong> set of citation formatters in Dart — and it must work <strong style="color:#fff">100% inside both editors</strong>.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Collaboration</span><p>Sean, Amirjon &amp; Chris build this <strong>together</strong> as one shared module. It is the common dependency of both your editors — agree on a single contract, split the five styles, and integrate into one build both editors import.</p></div>
+            <div class="block"><span class="block-label">Reference</span><p>The citation formatter implementations live in the now-public repo <strong><a href="https://github.com/boardwalk-ai/OctopilotWeb" target="_blank" rel="noopener">boardwalk-ai/OctopilotWeb</a></strong>. Study them and rewrite each formatter in <strong>Dart</strong>.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p>One shared Dart module exposing the <strong>five citation styles</strong> — APA, MLA, Chicago, IEEE, Harvard — behind a single interface both the GhostWriter editor and the Guided-Generation editor call, with identical results.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>One shared module, <strong>one common interface</strong> — both editors import it and get identical output.</span></li>
+                <li><span class="cbx"></span><span>Rewrite all five in Dart: <strong>APA · MLA · Chicago · IEEE · Harvard</strong> — port from the OctopilotWeb reference.</span></li>
+                <li><span class="cbx"></span><span>Each formatter: structured source fields (author, title, year, publisher, URL…) → correct <strong>in-text citation + full reference entry</strong>.</span></li>
+                <li><span class="cbx"></span><span>Prove it works <strong>100% in both editors</strong> — GhostWriter's editor and the Guided-Generation editor, live style switching in each.</span></li>
+                <li><span class="cbx"></span><span>Handle edge cases — missing fields, multiple authors, no date, web vs print sources.</span></li>
+                <li><span class="cbx"></span><span>Unit tests for every style against known-correct examples.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>One shared Dart formatter module drives citations in <strong>both</strong> editors identically — all five styles correct, live-switchable, edge cases handled, unit tests passing.</p></div>
+          <div class="meta-row">
+            <span class="pill">Stack <b>Flutter · Dart</b></span>
+            <span class="pill">Scope <b>shared module</b></span>
+            <span class="pill">Team <b>Sean + Amirjon + Chris</b></span>
+            <span class="pill">Branch <b>shared · fork PR</b></span>
+          </div>
+        </article>
+
+        <!-- 4 ANAGHA -->
+        <article class="card" id="anagha4">
+          <div class="card-num">04</div>
+          <div class="card-top">
+            <div class="avatar">A</div>
+            <div class="who"><div class="name">Anagha</div><div class="role">Frontend · Streaming</div></div>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>~2–3 days</span>
+          </div>
+          <h3>Streaming Crawl — Now Live</h3>
+          <p class="lede">Last week the Star Wars crawl ran on a mock timer. This week it runs on <strong style="color:#fff">real streamed tokens</strong> — plus a reusable streaming-text controller any generation screen can drop in.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">What you'll build</span><p>Take your crawl animation and drive it from a <strong>live token stream (SSE)</strong> instead of a mock timer, wrapped in a reusable <strong>streaming-text controller</strong> that exposes incremental text and typing/done state.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>Drive the <strong>crawl animation</strong> from real streamed tokens (SSE), not a mock timer.</span></li>
+                <li><span class="cbx"></span><span>Build a reusable <strong>streaming-text controller</strong> — subscribe to a token stream, expose incremental text + typing / done state.</span></li>
+                <li><span class="cbx"></span><span><strong>Typing indicator / cursor</strong> while streaming; smooth append with no jank.</span></li>
+                <li><span class="cbx"></span><span>Keep it <strong>viewport-fit</strong> — long streamed output still fits, no scrolling.</span></li>
+                <li><span class="cbx"></span><span>A drop-in <strong>reusable widget</strong> any generation screen can use.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>The crawl plays over <strong>real streamed output</strong>, the streaming-text controller is reusable across screens, and long output stays within the viewport.</p></div>
+          <div class="meta-row">
+            <span class="pill">Stack <b>Flutter · Dart</b></span>
+            <span class="pill">Scope <b>frontend · streaming</b></span>
+            <span class="pill">Branch <b>your own · fork PR</b></span>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ASSIGNMENT 03 · 22 AUG 2026 (PAST) ===================== -->
+  <section class="week wrap" id="week03">
+    <div class="week-head">
+      <span class="past-tag">Past · Archived</span>
+      <span class="week-tag">Assignment 03</span>
+      <h1 class="week-title">22 August 2026</h1>
+      <p class="week-note">Last week — a deep <strong style="color:var(--text)">backend</strong> push. The services behind the modules in <strong style="color:var(--text)">GoLang + Python</strong> — Go for the APIs (saving, folder loading, credits), Python for the AI calls — with agents rewritten from the now-public reference repo. Anagha took a frontend craft task. Kept on the board for reference.</p>
+      <div class="week-stats">
+        <span class="s"><b>3</b> tasks</span>
+        <span class="s"><b>Go + Python</b> backend</span>
+        <span class="s"><b>Complex</b> systems</span>
+      </div>
+    </div>
+
+    <!-- submission / focus / check-ins -->
+    <div class="brief">
+      <div class="brief-item"><span class="bi-k">Submission</span><span class="bi-v">Fork-based pull request</span></div>
+      <div class="brief-item"><span class="bi-k">Focus</span><span class="bi-v r">Backend · Go + Python</span></div>
+      <div class="brief-item"><span class="bi-k">Check-ins</span><span class="bi-v">Daily · via WhatsApp</span></div>
+    </div>
+
+    <div class="grid">
+      <nav class="index">
+        <a href="#sean3" data-target="sean3"><span class="n">01</span> Sean</a>
+        <a href="#team3" data-target="team3"><span class="n">02</span> Amirjon + Chris</a>
+        <a href="#anagha3" data-target="anagha3"><span class="n">03</span> Anagha</a>
+      </nav>
+
+      <div class="cards">
+
+        <!-- 1 SEAN -->
+        <article class="card" id="sean3">
+          <div class="card-num">01</div>
+          <div class="card-top">
+            <div class="avatar">S</div>
+            <div class="who"><div class="name">Sean</div><div class="role">Backend · GhostWriter</div></div>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>~1 week</span>
+          </div>
+          <h3>GhostWriter — Agent Backend</h3>
+          <p class="lede">Build the backend that powers the GhostWriter module — a <strong style="color:#fff">GoLang + Python</strong> service with rewritten agent tools and semantic chat memory. A deep, systems-heavy build; your chance to showcase real expertise.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Reference</span><p>The tools reference for the main GhostWriter lives in the now-public repo <strong><a href="https://github.com/boardwalk-ai/OctopilotWeb" target="_blank" rel="noopener">boardwalk-ai/OctopilotWeb</a></strong>. Study it and rewrite the agent tools for this backend.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p>A two-language backend: <strong>GoLang</strong> for the APIs (saving, folder loading, user-credits loading, …) and <strong>Python</strong> for the AI/model calls — driven by rewritten agent tools and backed by a semantic memory for the chat session.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>Rewrite the <strong>agent tools</strong> — reference the tools used in the main GhostWriter (OctopilotWeb repo).</span></li>
+                <li><span class="cbx"></span><span>Build <strong>GoLang APIs</strong> for the saving mechanism, folder loading, user-credits loading, etc.</span></li>
+                <li><span class="cbx"></span><span>Use <strong>Python</strong> for the AI calls.</span></li>
+                <li><span class="cbx"></span><span>Implement <strong>semantic memory</strong> for the chat session — persist and retrieve context across turns.</span></li>
+                <li><span class="cbx"></span><span>You may use a <strong>self-hosted VectorDB</strong> for the agent's memory context.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>The GhostWriter backend runs end to end — Go APIs handle persistence &amp; credits, Python handles the AI calls, the rewritten agent tools work, and the chat session carries semantic memory.</p></div>
+          <div class="meta-row">
+            <span class="pill">Stack <b>Go · Python</b></span>
+            <span class="pill">Scope <b>backend</b></span>
+            <span class="pill">Branch <b>your own · fork PR</b></span>
+          </div>
+        </article>
+
+        <!-- 2 AMIRJON + CHRIS -->
+        <article class="card" id="team3">
+          <div class="card-num">02</div>
+          <div class="card-top">
+            <div class="avatar">AC</div>
+            <div class="who"><div class="name">Amirjon + Chris</div><div class="role">Backend · Guided Generation</div></div>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>~1 week</span>
+          </div>
+          <h3>Guided Generation — Agent Backend</h3>
+          <p class="lede">Team up on the backend for Guided Generation — a <strong style="color:#fff">GoLang + Python</strong> service with rewritten agents. Your frontend tasks share one Mode, so build this backend together. A chance to show real depth.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">Cooperation</span><p>Amirjon &amp; Chris — since your Guided Generation frontend tasks are under <strong>one Mode</strong>, cooperate on this backend as one team: split the work and integrate it.</p></div>
+            <div class="block"><span class="block-label">Reference</span><p>The agents reference for the main Guided-Generation lives in the now-public repo <strong><a href="https://github.com/boardwalk-ai/OctopilotWeb" target="_blank" rel="noopener">boardwalk-ai/OctopilotWeb</a></strong>. Study it and rewrite the agents for this backend.</p></div>
+            <div class="block"><span class="block-label">What you'll build</span><p>A two-language backend: <strong>GoLang</strong> for the APIs (saving, folder loading, user-credits loading, …) and <strong>Python</strong> for the AI/model calls — driven by rewritten Guided-Generation agents.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span><strong>Cooperate</strong> — one Mode, one backend; divide and integrate the work between you.</span></li>
+                <li><span class="cbx"></span><span>Rewrite the <strong>agents</strong> — reference the agents used in the main Guided-Generation (OctopilotWeb repo).</span></li>
+                <li><span class="cbx"></span><span>Build <strong>GoLang APIs</strong> for the saving mechanism, folder loading, user-credits loading, etc.</span></li>
+                <li><span class="cbx"></span><span>Use <strong>Python</strong> for the AI calls.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>The Guided Generation backend runs end to end — Go APIs handle persistence &amp; credits, Python handles the AI calls, and the rewritten agents drive the flow.</p></div>
+          <div class="meta-row">
+            <span class="pill">Stack <b>Go · Python</b></span>
+            <span class="pill">Scope <b>backend</b></span>
+            <span class="pill">Team <b>Amirjon + Chris</b></span>
+            <span class="pill">Branch <b>fork PR</b></span>
+          </div>
+        </article>
+
+        <!-- 3 ANAGHA -->
+        <article class="card" id="anagha3">
+          <div class="card-num">03</div>
+          <div class="card-top">
+            <div class="avatar">A</div>
+            <div class="who"><div class="name">Anagha</div><div class="role">Frontend · Motion &amp; Layout</div></div>
+            <span class="chip time"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6 3.5 2-.9 1.5L11 13.6V7h2Z"/></svg>~2–3 days</span>
+          </div>
+          <h3>Streaming Animation + Viewport-Fit Layout</h3>
+          <p class="lede">Two frontend crafts in one: design the iconic <strong style="color:#fff">Star Wars-style</strong> AI-output streaming animation, then refit your past pages so every screen fits its viewport — no scrolling, anywhere.</p>
+          <div class="detail">
+            <div class="block"><span class="block-label">What you'll build</span><p>A reusable <strong>streaming reveal animation</strong> for AI output — the classic Star Wars opening-crawl feel, text emerging in perspective as it streams in — plus a layout pass over the <strong>Guided Generation pages you built last week</strong> so they fit the screen exactly.</p></div>
+            <div class="block"><span class="block-label">Scope</span>
+              <ul class="checklist">
+                <li><span class="cbx"></span><span>Design the <strong>Star Wars-style streaming animation</strong> for AI output — the perspective "crawl" reveal as tokens/content stream in.</span></li>
+                <li><span class="cbx"></span><span>Make it <strong>smooth, performant and reusable</strong> — a widget any generation screen can drop in.</span></li>
+                <li><span class="cbx"></span><span>Revisit <strong>your past pages</strong> (Generation → Humanizer) and <strong>adjust the layout to fit the viewport</strong> on every target screen size.</span></li>
+                <li><span class="cbx"></span><span><strong>No scrolling needed, no scrolling allowed</strong> — everything lives within the visible viewport at desktop and mobile widths.</span></li>
+                <li><span class="cbx"></span><span>Responsive layout · reusable widgets · clean state handling.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="done"><span class="lab">Done when</span><p>The Star Wars streaming animation plays over AI output, and every one of your pages fits its viewport across screen sizes with <strong>zero scrolling</strong>.</p></div>
+          <div class="meta-row">
+            <span class="pill">Stack <b>Flutter · Dart</b></span>
+            <span class="pill">Scope <b>frontend</b></span>
+            <span class="pill">Branch <b>your own · fork PR</b></span>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ASSIGNMENT 02 · 12 AUG 2026 (PAST) ===================== -->
   <section class="week wrap" id="week02">
     <div class="week-head">
-      <span class="week-tag">Assignment 02 · Current</span>
+      <span class="past-tag">Past · Archived</span>
+      <span class="week-tag">Assignment 02</span>
       <h1 class="week-title">12 August 2026</h1>
-      <p class="week-note">This week is all <strong style="color:var(--text)">frontend</strong>. Draft each page in <strong style="color:var(--text)">Flutter</strong> from its live reference on octopilotai.app — UI only, no backend wiring required.</p>
+      <p class="week-note">Last week — all <strong style="color:var(--text)">frontend</strong>. Each page drafted in <strong style="color:var(--text)">Flutter</strong> from its live reference on octopilotai.app. Kept on the board for reference.</p>
       <div class="week-stats">
         <span class="s"><b>4</b> tasks</span>
         <span class="s"><b>1</b> per person</span>
