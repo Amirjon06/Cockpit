@@ -28,6 +28,38 @@ class CitationSource {
   final String? year;
   final String? url;
   final String? accessDate;
+
+  factory CitationSource.fromJson(Map<String, dynamic> json) {
+    return CitationSource(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Untitled source',
+      author: json['author']?.toString(),
+      publisher: json['publisher']?.toString(),
+      year: json['year']?.toString(),
+      url: json['url']?.toString(),
+      accessDate: json['accessDate']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    if (author != null) 'author': author,
+    if (publisher != null) 'publisher': publisher,
+    if (year != null) 'year': year,
+    if (url != null) 'url': url,
+    if (accessDate != null) 'accessDate': accessDate,
+  };
+}
+
+extension CitationStyleX on CitationStyle {
+  static CitationStyle fromLabel(String? value) {
+    final normalized = value?.trim().toLowerCase();
+    return CitationStyle.values.firstWhere(
+      (style) => style.label.toLowerCase() == normalized,
+      orElse: () => CitationStyle.apa,
+    );
+  }
 }
 
 class CitationFormatter {

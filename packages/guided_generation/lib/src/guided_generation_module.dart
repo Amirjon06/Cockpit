@@ -40,7 +40,12 @@ class GuidedGenerationModule extends CockpitModule {
           path: 'configuration',
           builder: (_, _) => const GuidedNextPage(),
         ),
-        GoRoute(path: 'editor', builder: (_, _) => const GuidedEditorPage()),
+        GoRoute(
+          path: 'editor',
+          builder: (_, state) => GuidedEditorPage(
+            threadId: state.uri.queryParameters['threadId'],
+          ),
+        ),
       ],
     ),
   ];

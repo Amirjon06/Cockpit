@@ -2,10 +2,14 @@ import 'package:cockpit_ui/cockpit_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 
+import '../../data/guided_generation_repository.dart';
 import '../../formatters/citation_formatter.dart';
 
 class GuidedEditorPage extends StatefulWidget {
-  const GuidedEditorPage({super.key});
+  const GuidedEditorPage({super.key, this.repository, this.threadId});
+
+  final GuidedGenerationRepository? repository;
+  final String? threadId;
 
   @override
   State<GuidedEditorPage> createState() => _GuidedEditorPageState();
@@ -35,7 +39,8 @@ class _ChevronPainter extends CustomPainter {
 }
 
 class _GuidedEditorPageState extends State<GuidedEditorPage> {
-  final QuillController _controller = QuillController.basic();
+  late QuillController _controller;
+  late final GuidedGenerationRepository _repository;
   final CitationFormatter _formatter = const CitationFormatter();
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
@@ -43,63 +48,86 @@ class _GuidedEditorPageState extends State<GuidedEditorPage> {
   TextSelection _editorSelection = const TextSelection.collapsed(offset: 0);
 
   CitationStyle _citationStyle = CitationStyle.apa;
+  String? _threadId;
+  Map<String, dynamic> _runState = {};
+  bool _loading = true;
+  String? _loadError;
   bool _saving = false;
   bool _saved = true;
   double _zoom = 1.0;
   bool _showReferences = true;
 
-  final List<CitationSource> _sources = const [
-    CitationSource(
-      id: '1',
-      author: 'Smith, Jordan',
-      title: 'Artificial Intelligence and Modern Education',
-      publisher: 'Academic Press',
-      year: '2025',
-      url: 'https://example.com/ai-education',
-    ),
-    CitationSource(
-      id: '2',
-      author: 'Lee, Morgan',
-      title: 'Technology in the Classroom',
-      publisher: 'Education Review',
-      year: '2024',
-      url: 'https://example.com/classroom-technology',
-    ),
-  ];
+  List<CitationSource> _sources = [];
 
   @override
   void initState() {
     super.initState();
+    _repository =
+        widget.repository ?? ApiGuidedGenerationRepository.defaultClient();
+    _threadId = widget.threadId;
+    _controller = QuillController.basic();
+    _attachControllerListeners();
+    _load();
+  }
 
-    final first = _formatter.inlineCitation(
-      _sources[0],
-      _citationStyle,
-      index: 1,
-    );
-    final second = _formatter.inlineCitation(
-      _sources[1],
-      _citationStyle,
-      index: 2,
-    );
-    final references = _formatter.bibliography(_sources, _citationStyle);
-
-    _controller.document.insert(
-      0,
-      'Artificial Intelligence in Education\n\n'
-      'Artificial intelligence is changing how students learn and how '
-      'educators design learning experiences. Adaptive systems can provide '
-      'students with more personalized support while reducing repetitive '
-      'work for instructors $first.\n\n'
-      'The technology also introduces questions about accuracy, access, '
-      'privacy, and the appropriate role of automation in education $second.'
-      '\n\nReferences\n\n${references.join('\n\n')}\n',
-    );
-
+  void _attachControllerListeners() {
     _controller.addListener(_handleDocumentChange);
     _controller.onSelectionChanged = (selection) {
       _editorSelection = selection;
       if (mounted) setState(() {});
     };
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+
+    try {
+      final thread = await _repository.loadEditor(threadId: _threadId);
+      if (!mounted) return;
+
+      if (thread == null) {
+        setState(() {
+          _loading = false;
+          _saved = true;
+        });
+        return;
+      }
+
+      Document document;
+      try {
+        document = thread.delta == null
+            ? (Document()..insert(0, thread.plainText))
+            : Document.fromJson(thread.delta!);
+      } catch (_) {
+        document = Document()..insert(0, thread.plainText);
+      }
+
+      _controller.removeListener(_handleDocumentChange);
+      _controller.dispose();
+      _controller = QuillController(
+        document: document,
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+      _attachControllerListeners();
+
+      setState(() {
+        _threadId = thread.id;
+        _citationStyle = thread.citationStyle;
+        _sources = thread.sources;
+        _runState = thread.runState;
+        _loading = false;
+        _saved = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadError = 'Could not load the document. $error';
+      });
+    }
   }
 
   void _handleDocumentChange() {
@@ -118,15 +146,39 @@ class _GuidedEditorPageState extends State<GuidedEditorPage> {
     if (_saving) return;
 
     setState(() => _saving = true);
-
-    await Future<void>.delayed(const Duration(milliseconds: 450));
-
-    if (!mounted) return;
-
-    setState(() {
-      _saving = false;
-      _saved = true;
-    });
+    try {
+      final plainText = _controller.document.toPlainText().trimRight();
+      final title = plainText
+          .split('\n')
+          .firstWhere(
+            (line) => line.trim().isNotEmpty,
+            orElse: () => 'Untitled essay',
+          )
+          .trim();
+      final thread = await _repository.saveEditor(
+        threadId: _threadId,
+        title: title.length > 120 ? title.substring(0, 120) : title,
+        plainText: plainText,
+        wordCount: _wordCount,
+        citationStyle: _citationStyle,
+        delta: _controller.document.toDelta().toJson(),
+        sources: _sources,
+        runState: _runState,
+      );
+      if (!mounted) return;
+      setState(() {
+        _threadId = thread.id;
+        _runState = thread.runState;
+        _saving = false;
+        _saved = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save the document. $error')),
+      );
+    }
   }
 
   void _changeCitationStyle(CitationStyle? style) {
@@ -212,29 +264,67 @@ class _GuidedEditorPageState extends State<GuidedEditorPage> {
           children: [
             _buildHeader(context),
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final wide = constraints.maxWidth >= 1000;
+              child: _loading
+                  ? const Center(
+                      key: Key('guided-editor-loading'),
+                      child: CircularProgressIndicator(),
+                    )
+                  : _loadError != null
+                  ? _buildLoadError(context)
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final wide = constraints.maxWidth >= 1000;
 
-                  if (wide) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(child: _buildEditor(context)),
-                        if (_showReferences)
-                          SizedBox(
-                            width: 300,
-                            child: _buildReferences(context),
-                          ),
-                      ],
-                    );
-                  }
+                        if (wide) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: _buildEditor(context)),
+                              if (_showReferences)
+                                SizedBox(
+                                  width: 300,
+                                  child: _buildReferences(context),
+                                ),
+                            ],
+                          );
+                        }
 
-                  return _buildEditor(context);
-                },
-              ),
+                        return _buildEditor(context);
+                      },
+                    ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadError(BuildContext context) {
+    return Center(
+      key: const Key('guided-editor-error'),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_outlined, size: 42),
+              const SizedBox(height: 12),
+              Text(
+                _loadError!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                key: const Key('guided-editor-retry'),
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try again'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -331,7 +421,10 @@ class _GuidedEditorPageState extends State<GuidedEditorPage> {
               SizedBox(
                 height: 34,
                 child: FilledButton(
-                  onPressed: _saving ? null : _save,
+                  key: const Key('guided-editor-save'),
+                  onPressed: _saving || _loading || _loadError != null
+                      ? null
+                      : _save,
                   style: FilledButton.styleFrom(
                     backgroundColor: red,
                     foregroundColor: Colors.white,
