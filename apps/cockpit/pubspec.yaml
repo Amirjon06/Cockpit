@@ -38,6 +38,7 @@ dependencies:
     path: ../../packages/guided_generation
   study_studio:
     path: ../../packages/study_studio
+  flutter_quill: ^11.5.1
 
 dev_dependencies:
   flutter_test:

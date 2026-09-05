@@ -2529,10 +2529,10 @@ class GuidedNextPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.tune_rounded, size: 42, color: colors.primary),
+              Icon(Icons.description_outlined, size: 42, color: colors.primary),
               const SizedBox(height: CockpitSpacing.lg),
               Text(
-                'Configuration comes next',
+                'Ready to write',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w800,
@@ -2540,12 +2540,18 @@ class GuidedNextPage extends StatelessWidget {
               ),
               const SizedBox(height: CockpitSpacing.sm),
               Text(
-                'The Outline Generation frontend ends here. This route is the handoff to the next Guided Generation step.',
+                'Continue to the document editor to review, edit, and format your generated work.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: colors.onSurfaceVariant,
                   height: 1.5,
                 ),
+              ),
+              const SizedBox(height: CockpitSpacing.xl),
+              FilledButton.icon(
+                onPressed: () => context.go('/guided-generation/editor'),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text('Continue to Editor'),
               ),
             ],
           ),

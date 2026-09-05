@@ -16,6 +16,7 @@ dependencies:
     path: ../cockpit_module
   cockpit_ui:
     path: ../cockpit_ui
+  flutter_quill: ^11.5.1
 
 dev_dependencies:
   flutter_test:

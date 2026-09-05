@@ -3,6 +3,7 @@ import 'package:cockpit_ui/cockpit_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'presentation/editor/editor_page.dart';
 import 'presentation/outline/outline_page.dart';
 
 class GuidedGenerationModule extends CockpitModule {
@@ -39,6 +40,7 @@ class GuidedGenerationModule extends CockpitModule {
           path: 'configuration',
           builder: (_, _) => const GuidedNextPage(),
         ),
+        GoRoute(path: 'editor', builder: (_, _) => const GuidedEditorPage()),
       ],
     ),
   ];
