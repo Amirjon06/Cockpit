@@ -18,6 +18,8 @@ dependencies:
     path: ../cockpit_core
   cockpit_ui:
     path: ../cockpit_ui
+  citation_formatters:
+    path: ../citation_formatters
   flutter_quill: ^11.5.1
 
 dev_dependencies:

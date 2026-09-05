@@ -74,6 +74,42 @@ void main() {
     expect(find.byKey(const Key('guided-editor-retry')), findsOneWidget);
     expect(find.textContaining('offline'), findsOneWidget);
   });
+
+  testWidgets('inserts a source citation and switches it live', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final repository = _FakeRepository(
+      Future<GuidedEditorThread?>.value(_thread()),
+    );
+
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+
+    final editor = tester.widget<QuillEditor>(find.byType(QuillEditor));
+    final end = editor.controller.document.length - 1;
+    editor.controller.updateSelection(
+      TextSelection.collapsed(offset: end),
+      ChangeSource.local,
+    );
+
+    await tester.tap(find.byKey(const Key('insert-citation-source-1')));
+    await tester.pump();
+    expect(
+      editor.controller.document.toPlainText(),
+      contains('(Rivera, 2026)'),
+    );
+
+    await tester.tap(find.byType(DropdownButtonFormField<CitationStyle>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('IEEE').last);
+    await tester.pumpAndSettle();
+
+    expect(editor.controller.document.toPlainText(), contains('[1]'));
+    expect(
+      editor.controller.document.toPlainText(),
+      isNot(contains('(Rivera, 2026)')),
+    );
+  });
 }
 
 Widget _app(GuidedGenerationRepository repository) {
@@ -89,7 +125,16 @@ GuidedEditorThread _thread() {
     title: 'Saved draft',
     plainText: 'Saved draft\n\nA persisted paragraph.',
     citationStyle: CitationStyle.apa,
-    sources: [],
+    sources: [
+      CitationSource(
+        id: 'source-1',
+        title: 'Verified source',
+        author: 'Alex Rivera',
+        publisher: 'Academic Press',
+        year: 'Published 2026',
+        url: 'https://example.edu/source',
+      ),
+    ],
     runState: {},
     delta: [
       {'insert': 'Saved draft\n\nA persisted paragraph.\n'},

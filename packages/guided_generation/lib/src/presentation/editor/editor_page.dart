@@ -238,6 +238,33 @@ class _GuidedEditorPageState extends State<GuidedEditorPage> {
     }
   }
 
+  void _insertCitation(CitationSource source, int index) {
+    final selection = _editorSelection;
+    final documentLength = _controller.document.length;
+    final offset = selection.start.clamp(0, documentLength - 1);
+    final selectedLength = selection.isValid && !selection.isCollapsed
+        ? selection.end - selection.start
+        : 0;
+    final plainText = _controller.document.toPlainText();
+    final needsLeadingSpace =
+        offset > 0 && !RegExp(r'\s').hasMatch(plainText[offset - 1]);
+    final citation = _formatter.inlineCitation(
+      source,
+      _citationStyle,
+      index: index,
+    );
+    final insertion = '${needsLeadingSpace ? ' ' : ''}$citation ';
+
+    _controller.replaceText(
+      offset,
+      selectedLength,
+      insertion,
+      TextSelection.collapsed(offset: offset + insertion.length),
+    );
+    _editorSelection = _controller.selection;
+    _focusNode.requestFocus();
+  }
+
   void _changeZoom(double change) {
     setState(() {
       _zoom = (_zoom + change).clamp(0.75, 1.25);
@@ -1179,6 +1206,7 @@ class _GuidedEditorPageState extends State<GuidedEditorPage> {
   Widget _referencesContent(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final entries = _formatter.bibliography(_sources, _citationStyle);
+    final bibliographyTitle = _formatter.bibliographyTitle(_citationStyle);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1212,6 +1240,68 @@ class _GuidedEditorPageState extends State<GuidedEditorPage> {
           onChanged: _changeCitationStyle,
         ),
         const SizedBox(height: CockpitSpacing.xl),
+        Text(
+          'Inline citations',
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: CockpitSpacing.sm),
+        if (_sources.isEmpty)
+          Text(
+            'No sources are attached to this document yet.',
+            key: const Key('guided-editor-no-sources'),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          )
+        else
+          for (var i = 0; i < _sources.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: CockpitSpacing.sm),
+              child: OutlinedButton(
+                key: Key('insert-citation-${_sources[i].id}'),
+                onPressed: () => _insertCitation(_sources[i], i + 1),
+                style: OutlinedButton.styleFrom(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CockpitSpacing.md,
+                    vertical: CockpitSpacing.sm,
+                  ),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatter.inlineCitation(
+                          _sources[i],
+                          _citationStyle,
+                          index: i + 1,
+                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _sources[i].title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        const SizedBox(height: CockpitSpacing.lg),
+        Text(
+          bibliographyTitle,
+          key: const Key('guided-editor-bibliography-title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: CockpitSpacing.sm),
         for (var i = 0; i < entries.length; i++) ...[
           SelectableText(
             entries[i],
