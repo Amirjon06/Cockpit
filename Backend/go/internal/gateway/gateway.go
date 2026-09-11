@@ -11,6 +11,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/octopilot/cockpit-go/internal/auth"
 	"github.com/octopilot/cockpit-go/internal/config"
+	"github.com/octopilot/cockpit-go/internal/writingchamber"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -21,6 +22,7 @@ type Server struct {
 	cockpit *pgxpool.Pool
 	rdb     *redis.Client
 	minio   *minio.Client
+	writing *writingchamber.Server
 }
 
 func New(cfg config.Config, cockpit *pgxpool.Pool, rdb *redis.Client, verifier *auth.Verifier) (*Server, error) {
@@ -37,7 +39,7 @@ func New(cfg config.Config, cockpit *pgxpool.Pool, rdb *redis.Client, verifier *
 	if err != nil {
 		return nil, err
 	}
-	return &Server{cfg: cfg, proxy: proxy, auth: verifier, cockpit: cockpit, rdb: rdb, minio: mc}, nil
+	return &Server{cfg: cfg, proxy: proxy, auth: verifier, cockpit: cockpit, rdb: rdb, minio: mc, writing: writingchamber.New(cockpit, verifier)}, nil
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +54,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"ok":true,"role":"gateway"}`))
 		return
 	}
+	if r.URL.Path == "/api/v1/writing-chamber" || strings.HasPrefix(r.URL.Path, "/api/v1/writing-chamber/") {
+		s.setCORS(w, r)
+		s.writing.ServeHTTP(w, r)
+		return
+	}
+
 	s.proxy.ServeHTTP(w, r)
 }
 
