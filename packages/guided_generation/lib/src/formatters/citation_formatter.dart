@@ -19,6 +19,7 @@ class CitationSource {
     this.year,
     this.url,
     this.accessDate,
+    this.content,
   });
 
   final String id;
@@ -28,16 +29,20 @@ class CitationSource {
   final String? year;
   final String? url;
   final String? accessDate;
+  final String? content;
 
   factory CitationSource.fromJson(Map<String, dynamic> json) {
     return CitationSource(
       id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? 'Untitled source',
+      title: (json['title'] ?? json['Title'])?.toString() ?? 'Untitled Source',
       author: json['author']?.toString(),
       publisher: json['publisher']?.toString(),
-      year: json['year']?.toString(),
-      url: json['url']?.toString(),
+      year: (json['year'] ?? json['publishedYear'])?.toString(),
+      url: (json['url'] ?? json['website_URL'])?.toString(),
       accessDate: json['accessDate']?.toString(),
+      content:
+          (json['compactedContent'] ?? json['fullContent'] ?? json['abstract'])
+              ?.toString(),
     );
   }
 
@@ -49,6 +54,7 @@ class CitationSource {
     if (year != null) 'year': year,
     if (url != null) 'url': url,
     if (accessDate != null) 'accessDate': accessDate,
+    if (content != null) 'compactedContent': content,
   };
 }
 
@@ -64,6 +70,15 @@ extension CitationStyleX on CitationStyle {
 
 class CitationFormatter {
   const CitationFormatter();
+
+  String bibliographyTitle(CitationStyle style) {
+    return switch (style) {
+      CitationStyle.mla => 'Works Cited',
+      CitationStyle.chicago => 'Bibliography',
+      CitationStyle.harvard => 'Reference List',
+      CitationStyle.apa || CitationStyle.ieee => 'References',
+    };
+  }
 
   String inlineCitation(
     CitationSource source,

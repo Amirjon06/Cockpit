@@ -3,6 +3,7 @@ import 'package:cockpit_module/cockpit_module.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:guided_generation/guided_generation.dart';
 import 'package:study_studio/study_studio.dart';
+import 'package:writing_chamber/writing_chamber.dart';
 
 /// The set of modules currently mounted in the super-app, after applying
 /// feature flags. This is the single place that knows which modules exist —
@@ -17,5 +18,6 @@ final activeModulesProvider = Provider<List<CockpitModule>>((ref) {
   return [
     if (flags.studyStudioEnabled) const StudyStudioModule(),
     const GuidedGenerationModule(),
+    const WritingChamberModule(),
   ];
 });
