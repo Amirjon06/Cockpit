@@ -14,3 +14,4 @@ workspace:
   - packages/writing_chamber
   - packages/guided_generation
   - packages/study_studio
+  - packages/octo_notes
